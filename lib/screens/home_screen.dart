@@ -2581,7 +2581,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _hasSyncedPageAfterRebuild = false;
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: const Color(0xFF0B1324),
       body: SafeArea(
         child: LayoutBuilder(builder: (context, constraints) {
           final isDesktop = constraints.maxWidth > 1000;

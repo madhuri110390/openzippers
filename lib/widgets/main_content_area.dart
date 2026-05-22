@@ -862,7 +862,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               'No users found for\n"${widget.searchQuery}"',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.grey[500],
+                  color: Colors.white,
                   fontSize: 14,
                   height: 1.5),
             ),
@@ -887,7 +887,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                 style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: theme.textTheme.titleMedium?.color),
+                  color: Colors.white),
               ),
               const SizedBox(width: 8),
               Container(
@@ -985,7 +985,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    final color = isActive ? _kPink : theme.hintColor;
+    final color = isActive ? _kPink : Colors.white;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -1026,14 +1026,22 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final isBookmarked =
     widget.bookmarkedPosts.any((p) => p['id'] == post['id']);
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 24),
-      shape:
-      RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 1,
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // ── Author header ────────────────────────────────────────────────
-        ListTile(
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 8,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A2740),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white10,
+        ),
+      ),
+      child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
           contentPadding:
           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: GestureDetector(
@@ -1048,8 +1056,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                   child: Text(
                     post['author'] ?? 'User',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14),
-                    overflow: TextOverflow.ellipsis,
+                        fontSize: 24,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (post['verified'] == true || author.isVerified)
@@ -1063,7 +1073,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           ),
           subtitle: Text(
             _formatDate(post['date']),
-            style: TextStyle(fontSize: 11, color: theme.hintColor),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+            ),
           ),
           trailing: PopupMenuTheme(
             data: const PopupMenuThemeData(
@@ -1236,7 +1249,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               ),
             ),
           ),
+
         ),
+
 
         // ── Title ────────────────────────────────────────────────────────
         if (post['title'] != null && post['title'].toString().isNotEmpty)
@@ -1245,7 +1260,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             child: Text(
               post['title'],
               style: const TextStyle(
+                  color: Colors.white,
                   fontWeight: FontWeight.bold, fontSize: 16),
+
             ),
           ),
 
@@ -1259,18 +1276,17 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               if (_isHtmlContent(raw)) {
                 return Text(_stripHtml(raw),
                     maxLines: 4, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, height: 1.5));
+                    style: const TextStyle(  color: Colors.white,fontSize: 13, height: 1.5));
               }
               return Text(raw,
                   maxLines: 4, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, height: 1.5));
+                  style: const TextStyle(  color: Colors.white,fontSize: 13, height: 1.5));
             }),
           ),
 
         // ── Media ─────────────────────────────────────────────────────────
     ClipRRect(
-    borderRadius:
-    const BorderRadius.vertical(bottom: Radius.zero),
+    borderRadius: BorderRadius.circular(20),
     child: Stack(
     children: [
     ConstrainedBox(
@@ -1290,24 +1306,29 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     ),
 
     // Comment count chip
-    Positioned(
-    bottom: 10,
-    right: 10,
-    child: _buildCountChip(commentCount),
-    ),
+      Positioned(
+        bottom: 10,
+        right: 10,
+        child: _buildCountChip(commentCount),
+      ),
     ],
     ),
     ),
 
         // ── Action bar ───────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-          child: Row(
+
+    Padding(
+    padding: const EdgeInsets.fromLTRB(
+    16,
+    10,
+    16,
+    10,
+    ),
+          child:Row(
             children: [
-              // Like
               _buildActionButton(
                 icon: isLiked ? Icons.favorite : Icons.favorite_border,
-                color: isLiked ? _kPink : theme.hintColor,
+                color: isLiked ? _kPink : Colors.white,
                 label: '${post['likeCount'] ?? 0}',
                 onTap: () => widget.onPostAction(post, 'Like'),
               ),
@@ -1316,35 +1337,15 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                 icon: Icons.chat_bubble_outline_rounded,
                 color: _expandedPostIds.contains(postIdStr)
                     ? _kPink
-                    : theme.hintColor,
+                    : Colors.white,
                 label: '$commentCount',
                 onTap: () => _toggleComments(postIdStr),
               ),
-              // Bookmark
-              _buildActionButton(
-                icon: isBookmarked
-                    ? Icons.bookmark
-                    : Icons.bookmark_border,
-                color: isBookmarked ? _kPink : theme.hintColor,
-                label: '',
-                onTap: () =>
-                    widget.onPostAction(post, 'ToggleBookmark'),
+
+              const Icon(
+                Icons.star_border,
+                color: Colors.white,
               ),
-              // Share
-              _buildActionButton(
-                icon: Icons.share_outlined,
-                color: theme.hintColor,
-                label: '',
-                onTap: () => _handleShare(post),
-              ),
-              // Add to cart (non-free, non-own)
-              if (!_isOwnPost(post) && !_isFree(post['price']))
-                _buildActionButton(
-                  icon: Icons.add_shopping_cart_outlined,
-                  color: theme.hintColor,
-                  label: '',
-                  onTap: () => widget.onAddToCart?.call(post),
-                ),
             ],
           ),
         ),
@@ -1402,11 +1403,14 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           Icon(icon, color: color, size: 21),
           if (label.isNotEmpty) ...[
             const SizedBox(width: 4),
-            Text(label,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ]
         ]),
       ),
@@ -1549,7 +1553,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     return Container(
       height: 280,
       width: double.infinity,
-      decoration: const BoxDecoration(color: Colors.black54),
+      decoration: const BoxDecoration(color: Colors.white),
       child: Center(
         child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
           Container(
@@ -1627,16 +1631,19 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   Widget _buildAvatar(String avatar, {double radius = 20}) {
     if (avatar.startsWith('http')) {
       return CircleAvatar(
-          radius: radius, backgroundImage: NetworkImage(avatar));
+        radius: radius,
+        backgroundImage: NetworkImage(avatar),
+      );
     } else if (avatar.isNotEmpty) {
       return CircleAvatar(
-          radius: radius,
-          backgroundImage: FileImage(File(avatar)));
+        radius: radius,
+        backgroundImage: NetworkImage(avatar),
+      );
     }
     return CircleAvatar(
-        radius: radius,
-        backgroundColor: _kPink.withValues(alpha: 0.15),
-        child: const Icon(Icons.person, color: _kPink));
+      radius: radius,
+      backgroundImage: NetworkImage(avatar),
+    );
   }
 
   // ── Shimmer / empty ────────────────────────────────────────────────────────
