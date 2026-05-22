@@ -1305,12 +1305,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     child: _buildLockedOverlay(context, post),
     ),
 
-    // Comment count chip
-      Positioned(
-        bottom: 10,
-        right: 10,
-        child: _buildCountChip(commentCount),
-      ),
+
     ],
     ),
     ),
