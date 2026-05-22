@@ -1,0 +1,310 @@
+Analyzing openzippers...                                        
+
+   info • Empty catch block • lib/helpers/database_helper.dart:75:19 • empty_catches
+   info • 'dialogBackgroundColor' is deprecated and shouldn't be used. Use DialogThemeData.backgroundColor instead. This feature was deprecated after v3.27.0-0.1.pre • lib/main.dart:142:9 • deprecated_member_use
+warning • Unused import: 'mock_data.dart' • lib/models/live_stream.dart:1:8 • unused_import
+   info • Unnecessary braces in a string interpolation • lib/models/mock_data.dart:179:37 • unnecessary_brace_in_string_interps
+warning • Unused import: '../models/mock_data.dart' • lib/screens/cart_screen.dart:4:8 • unused_import
+   info • The private field _itemAvailability could be 'final' • lib/screens/cart_screen.dart:29:18 • prefer_final_fields
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:86:52 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:140:30 • prefer_const_constructors
+warning • The value of the local variable 'currentCart' isn't used • lib/screens/cart_screen.dart:232:13 • unused_local_variable
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:308:17 • prefer_const_constructors
+warning • The value of the local variable 'total' isn't used • lib/screens/cart_screen.dart:340:17 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:350:57 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:394:47 • deprecated_member_use
+warning • The left operand can't be null, so the right operand is never executed • lib/screens/cart_screen.dart:395:54 • dead_null_aware_expression
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:399:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:400:61 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:405:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:490:77 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:505:59 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:531:59 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:611:51 • prefer_const_constructors
+warning • The value of the local variable 'unavailableCount' isn't used • lib/screens/cart_screen.dart:635:15 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:657:39 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:671:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:674:56 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:683:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/cart_screen.dart:686:36 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/cart_screen.dart:963:35 • deprecated_member_use
+warning • Unused import: 'profile_screen.dart' • lib/screens/connections_screen.dart:3:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:301:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:301:67 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:302:21 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:303:56 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:303:73 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:354:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:354:68 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:355:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:356:52 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/connections_screen.dart:356:69 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/copyright_screen.dart:83:18 • prefer_const_constructors
+   info • The private field _selectedFileNames could be 'final' • lib/screens/copyright_screen.dart:362:16 • prefer_final_fields
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/copyright_screen.dart:454:63 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/copyright_screen.dart:531:46 • prefer_const_constructors
+   info • The private field _attachedFileNames could be 'final' • lib/screens/create_post_screen.dart:32:16 • prefer_final_fields
+   info • The private field _attachedFilePaths could be 'final' • lib/screens/create_post_screen.dart:33:16 • prefer_final_fields
+warning • The declaration '_onMakeFree' isn't referenced • lib/screens/create_post_screen.dart:79:8 • unused_element
+   info • Unnecessary braces in a string interpolation • lib/screens/create_post_screen.dart:156:84 • unnecessary_brace_in_string_interps
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_post_screen.dart:256:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_post_screen.dart:257:34 • prefer_const_constructors
+warning • The declaration '_isUselessText' isn't referenced • lib/screens/create_post_screen.dart:292:8 • unused_element
+warning • Unnecessary type check; the result is always 'true' • lib/screens/create_post_screen.dart:412:17 • unnecessary_type_check
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/create_post_screen.dart:548:24 • deprecated_member_use
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/create_post_screen.dart:550:30 • deprecated_member_use
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/create_post_screen.dart:551:25 • deprecated_member_use
+   info • 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/create_post_screen.dart:553:35 • deprecated_member_use
+   info • 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/create_post_screen.dart:554:35 • deprecated_member_use
+   info • 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/screens/create_post_screen.dart:555:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/create_post_screen.dart:557:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/create_post_screen.dart:558:36 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/create_post_screen.dart:561:34 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/create_post_screen.dart:562:34 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_post_screen.dart:742:25 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_post_screen.dart:825:56 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_post_screen.dart:835:51 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/create_post_screen.dart:846:55 • prefer_const_constructors
+   info • Use 'const' for final variables initialized to a constant value • lib/screens/create_post_screen.dart:865:5 • prefer_const_declarations
+warning • A value for optional parameter 'strokeWidth' isn't ever given • lib/screens/create_post_screen.dart:1084:51 • unused_element_parameter
+warning • A value for optional parameter 'gap' isn't ever given • lib/screens/create_post_screen.dart:1084:75 • unused_element_parameter
+warning • Two keys in a map literal shouldn't be equal • lib/screens/edit_profile_screen.dart:1172:5 • equal_keys_in_map
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/screens/edit_profile_screen.dart:1577:13 • deprecated_member_use
+   info • Unnecessary use of 'toList' in a spread • lib/screens/help_support_screen.dart:72:12 • unnecessary_to_list_in_spreads
+warning • The value of the local variable 'isDark' isn't used • lib/screens/help_support_screen.dart:80:11 • unused_local_variable
+   info • The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/screens/home_screen.dart:2:8 • unnecessary_import
+warning • Unused import: 'suggestions_screen.dart' • lib/screens/home_screen.dart:16:8 • unused_import
+warning • Unused import: 'cart_screen.dart' • lib/screens/home_screen.dart:17:8 • unused_import
+warning • Unused import: 'individual_post_screen.dart' • lib/screens/home_screen.dart:19:8 • unused_import
+warning • Unused import: '../models/live_stream.dart' • lib/screens/home_screen.dart:28:8 • unused_import
+warning • Unused import: 'copyright_screen.dart' • lib/screens/home_screen.dart:29:8 • unused_import
+warning • Unused import: 'publishing_screen.dart' • lib/screens/home_screen.dart:30:8 • unused_import
+warning • The value of the field '_selectedSuggestedUser' isn't used • lib/screens/home_screen.dart:48:13 • unused_field
+warning • The value of the field '_defaultPost' isn't used • lib/screens/home_screen.dart:56:30 • unused_field
+   info • The private field _commentedPosts could be 'final' • lib/screens/home_screen.dart:130:30 • prefer_final_fields
+   info • The private field _notifications could be 'final' • lib/screens/home_screen.dart:133:30 • prefer_final_fields
+warning • The value of the field '_notifications' isn't used • lib/screens/home_screen.dart:133:30 • unused_field
+   info • Empty catch block • lib/screens/home_screen.dart:175:17 • empty_catches
+   info • Statements in a for should be enclosed in a block • lib/screens/home_screen.dart:405:41 • curly_braces_in_flow_control_structures
+   info • Statements in a for should be enclosed in a block • lib/screens/home_screen.dart:406:38 • curly_braces_in_flow_control_structures
+   info • The local variable '_isDuplicateNotification' starts with an underscore • lib/screens/home_screen.dart:645:10 • no_leading_underscores_for_local_identifiers
+warning • Unnecessary type check; the result is always 'true' • lib/screens/home_screen.dart:778:23 • unnecessary_type_check
+warning • The value of the local variable 'notificationKey' isn't used • lib/screens/home_screen.dart:1089:12 • unused_local_variable
+warning • Two keys in a map literal shouldn't be equal • lib/screens/home_screen.dart:1146:8 • equal_keys_in_map
+warning • The declaration '_loadPostList' isn't referenced • lib/screens/home_screen.dart:1335:30 • unused_element
+warning • The declaration '_savePostList' isn't referenced • lib/screens/home_screen.dart:1351:16 • unused_element
+warning • The declaration '_saveSamplePosts' isn't referenced • lib/screens/home_screen.dart:1367:16 • unused_element
+warning • The declaration '_saveCommunityPosts' isn't referenced • lib/screens/home_screen.dart:1373:16 • unused_element
+warning • The declaration '_postListToJson' isn't referenced • lib/screens/home_screen.dart:1405:30 • unused_element
+   info • Don't use 'BuildContext's across async gaps • lib/screens/home_screen.dart:1514:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/home_screen.dart:1515:30 • use_build_context_synchronously
+warning • This 'onError' handler must return a value assignable to 'int', but ends without returning a value • lib/screens/home_screen.dart:1668:111 • body_might_complete_normally_catch_error
+   info • Don't use 'BuildContext's across async gaps • lib/screens/home_screen.dart:1686:26 • use_build_context_synchronously
+warning • The declaration '_updateCommentInList' isn't referenced • lib/screens/home_screen.dart:2012:8 • unused_element
+warning • The value of the local variable 'commentHandled' isn't used • lib/screens/home_screen.dart:2023:10 • unused_local_variable
+   info • The 'if' statement could be replaced by a null-aware assignment • lib/screens/home_screen.dart:2038:5 • prefer_conditional_assignment
+warning • The '!' will have no effect because the receiver can't be null • lib/screens/home_screen.dart:2045:36 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null • lib/screens/home_screen.dart:2047:36 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null • lib/screens/home_screen.dart:2049:35 • unnecessary_non_null_assertion
+   info • Statements in an if should be enclosed in a block • lib/screens/home_screen.dart:2452:29 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/screens/home_screen.dart:2453:37 • curly_braces_in_flow_control_structures
+warning • The declaration '_navigateToCreatePost' isn't referenced • lib/screens/home_screen.dart:2691:16 • unused_element
+warning • The value of the local variable 'availableWidth' isn't used • lib/screens/home_screen.dart:2715:19 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/home_screen.dart:2832:64 • deprecated_member_use
+   info • The 'children' argument should be last in widget constructor invocations • lib/screens/home_screen.dart:2837:19 • sort_child_properties_last
+warning • Unused import: 'dart:io' • lib/screens/live_streaming_screen.dart:4:8 • unused_import
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/screens/live_streaming_screen.dart:69:13 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/screens/live_streaming_screen.dart:69:19 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/screens/live_streaming_screen.dart:166:28 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/screens/live_streaming_screen.dart:166:73 • use_build_context_synchronously
+warning • The declaration '_startCommentSimulation' isn't referenced • lib/screens/live_streaming_screen.dart:648:8 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/live_streaming_screen.dart:776:55 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps, guarded by an unrelated 'mounted' check • lib/screens/live_streaming_screen.dart:821:49 • use_build_context_synchronously
+warning • The '!' will have no effect because the receiver can't be null • lib/screens/live_streaming_screen.dart:1136:120 • unnecessary_non_null_assertion
+   info • Use 'const' with the constructor to improve performance • lib/screens/live_streaming_screen.dart:1239:19 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/live_streaming_screen.dart:1429:77 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/live_streaming_screen.dart:1432:36 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/live_streaming_screen.dart:1434:47 • prefer_const_constructors
+   info • Unnecessary use of 'toList' in a spread • lib/screens/live_streaming_screen.dart:1495:26 • unnecessary_to_list_in_spreads
+   info • Use 'const' with the constructor to improve performance • lib/screens/live_streaming_screen.dart:1513:27 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/live_streaming_screen.dart:1564:22 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/live_streaming_screen.dart:1567:23 • prefer_const_literals_to_create_immutables
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/screens/live_streaming_screen.dart:1568:22 • prefer_const_literals_to_create_immutables
+warning • The declaration '_buildFloatingHearts' isn't referenced • lib/screens/live_streaming_screen.dart:1609:10 • unused_element
+warning • Unused import: 'dart:convert' • lib/screens/login_screen.dart:6:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/screens/login_screen.dart:24:17 • prefer_const_constructors
+warning • Unused import: 'package:open_filex/open_filex.dart' • lib/screens/profile_screen.dart:4:8 • unused_import
+warning • Unused import: '../helpers/database_helper.dart' • lib/screens/profile_screen.dart:8:8 • unused_import
+   info • The private field _searchQuery could be 'final' • lib/screens/profile_screen.dart:202:10 • prefer_final_fields
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/profile_screen.dart:433:53 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/profile_screen.dart:450:53 • deprecated_member_use
+warning • The declaration '_buildUserSearchResults' isn't referenced • lib/screens/profile_screen.dart:673:10 • unused_element
+   info • Use 'const' with the constructor to improve performance • lib/screens/profile_screen.dart:1160:26 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/profile_screen.dart:1161:57 • prefer_const_constructors
+warning • The '!' will have no effect because the receiver can't be null • lib/screens/profile_screen.dart:1299:25 • unnecessary_non_null_assertion
+warning • The '!' will have no effect because the receiver can't be null • lib/screens/profile_screen.dart:1300:45 • unnecessary_non_null_assertion
+   info • Use 'const' with the constructor to improve performance • lib/screens/publishing_screen.dart:82:18 • prefer_const_constructors
+   info • The private field _selectedFileNames could be 'final' • lib/screens/publishing_screen.dart:359:16 • prefer_final_fields
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/publishing_screen.dart:461:63 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/publishing_screen.dart:538:46 • prefer_const_constructors
+warning • The operand can't be 'null', so the condition is always 'false' • lib/screens/reels_screen.dart:124:47 • unnecessary_null_comparison
+   info • Use 'const' with the constructor to improve performance • lib/screens/reels_screen.dart:179:15 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reels_screen.dart:333:19 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reels_screen.dart:335:61 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reels_screen.dart:403:70 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/reels_screen.dart:450:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reels_screen.dart:451:33 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/reels_screen.dart:452:68 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/reels_screen.dart:555:47 • deprecated_member_use
+warning • The value of the local variable 'currentPost' isn't used • lib/screens/reels_screen.dart:643:27 • unused_local_variable
+   info • Use 'const' with the constructor to improve performance • lib/screens/settings_screen.dart:549:37 • prefer_const_constructors
+warning • The declaration '_showContactSupportDialog' isn't referenced • lib/screens/settings_screen.dart:1314:8 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings_screen.dart:1361:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/settings_screen.dart:1392:56 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/screens/settings_screen.dart:1437:52 • prefer_const_constructors
+warning • Unused import: '../helpers/database_helper.dart' • lib/screens/splash_screen.dart:5:8 • unused_import
+   info • Use 'const' with the constructor to improve performance • lib/screens/splash_screen.dart:45:12 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/splash_screen.dart:47:13 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/splash_screen.dart:48:16 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/screens/splash_screen.dart:49:18 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/suggestions_screen.dart:134:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/suggestions_screen.dart:139:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/suggestions_screen.dart:152:50 • deprecated_member_use
+   info • Parameter 'key' could be a super parameter • lib/screens/zego_live_page.dart:10:9 • use_super_parameters
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/zego_live_page.dart:36:43 • deprecated_member_use
+   info • The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/widgets/comment_section.dart:3:8 • unnecessary_import
+   info • The import of 'package:flutter/foundation.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/widgets/comment_section.dart:4:8 • unnecessary_import
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:379:30 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:380:38 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:381:14 • curly_braces_in_flow_control_structures
+   info • Unnecessary use of 'toList' in a spread • lib/widgets/comment_section.dart:442:27 • unnecessary_to_list_in_spreads
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/comment_section.dart:505:49 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:531:83 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:532:38 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:534:56 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:534:91 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/widgets/comment_section.dart:536:37 • curly_braces_in_flow_control_structures
+warning • The value of the local variable 'isCommentOwner' isn't used • lib/widgets/comment_section.dart:612:11 • unused_local_variable
+   info • Use 'const' with the constructor to improve performance • lib/widgets/comment_section.dart:626:25 • prefer_const_constructors
+warning • The '!' will have no effect because the receiver can't be null • lib/widgets/comment_section.dart:678:50 • unnecessary_non_null_assertion
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/comment_section.dart:783:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/comment_section.dart:785:42 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/widgets/comment_section.dart:864:32 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/comment_section.dart:884:40 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/comment_section.dart:969:34 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/comment_section.dart:971:36 • prefer_const_constructors
+   info • The import of 'package:flutter/services.dart' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' • lib/widgets/comments_bottom_sheet.dart:3:8 • unnecessary_import
+warning • Unused import: 'media_player_widgets.dart' • lib/widgets/comments_bottom_sheet.dart:5:8 • unused_import
+warning • The value of the local variable 'isDark' isn't used • lib/widgets/comments_bottom_sheet.dart:110:11 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/comments_bottom_sheet.dart:163:90 • deprecated_member_use
+warning • The value of the local variable 'isCurrentUser' isn't used • lib/widgets/comments_bottom_sheet.dart:185:29 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/comments_bottom_sheet.dart:194:72 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/comments_bottom_sheet.dart:292:60 • deprecated_member_use
+warning • Unused import: 'package:flutter/painting.dart' • lib/widgets/main_content_area.dart:7:8 • unused_import
+warning • Unused import: 'package:url_launcher/url_launcher.dart' • lib/widgets/main_content_area.dart:8:8 • unused_import
+warning • Unused import: 'package:flutter/widgets.dart' • lib/widgets/main_content_area.dart:10:8 • unused_import
+warning • Duplicate import • lib/widgets/main_content_area.dart:24:8 • duplicate_import
+warning • Unused import: 'package:shared_preferences/shared_preferences.dart' • lib/widgets/main_content_area.dart:27:8 • unused_import
+warning • Duplicate import • lib/widgets/main_content_area.dart:28:8 • duplicate_import
+warning • Unused import: 'scrollable_content_wrapper.dart' • lib/widgets/main_content_area.dart:29:8 • unused_import
+warning • The value of the field '_processingNotifications' isn't used • lib/widgets/main_content_area.dart:93:21 • unused_field
+warning • The declaration '_toggleComments' isn't referenced • lib/widgets/main_content_area.dart:249:8 • unused_element
+warning • The operand can't be 'null', so the condition is always 'false' • lib/widgets/main_content_area.dart:282:47 • unnecessary_null_comparison
+warning • The operand can't be 'null', so the condition is always 'false' • lib/widgets/main_content_area.dart:295:18 • unnecessary_null_comparison
+warning • Unnecessary type check; the result is always 'false' • lib/widgets/main_content_area.dart:295:49 • unnecessary_type_check
+   info • Use 'const' for final variables initialized to a constant value • lib/widgets/main_content_area.dart:354:5 • prefer_const_declarations
+warning • Unnecessary type check; the result is always 'true' • lib/widgets/main_content_area.dart:594:29 • unnecessary_type_check
+warning • The '!' will have no effect because the receiver can't be null • lib/widgets/main_content_area.dart:721:52 • unnecessary_non_null_assertion
+warning • Unnecessary type check; the result is always 'true' • lib/widgets/main_content_area.dart:741:29 • unnecessary_type_check
+   info • 'Share' is deprecated and shouldn't be used. Use SharePlus instead • lib/widgets/main_content_area.dart:853:11 • deprecated_member_use
+   info • 'share' is deprecated and shouldn't be used. Use SharePlus.instance.share() instead • lib/widgets/main_content_area.dart:853:17 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:939:62 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:1154:25 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1173:56 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1192:68 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1298:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1314:63 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1350:125 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1426:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1428:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1496:51 • deprecated_member_use
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/main_content_area.dart:1566:26 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/main_content_area.dart:1567:30 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/main_content_area.dart:1581:26 • use_build_context_synchronously
+   info • Don't use 'BuildContext's across async gaps • lib/widgets/main_content_area.dart:1582:30 • use_build_context_synchronously
+warning • The declaration '_buildReelsCard' isn't referenced • lib/widgets/main_content_area.dart:1828:10 • unused_element
+   info • Use 'const' for final variables initialized to a constant value • lib/widgets/main_content_area.dart:1891:5 • prefer_const_declarations
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1901:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:1907:36 • deprecated_member_use
+warning • The declaration '_buildEmptyState' isn't referenced • lib/widgets/main_content_area.dart:1941:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2037:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2085:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2087:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2088:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2123:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2299:37 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2303:41 • deprecated_member_use
+warning • The receiver can't be null, so the null-aware operator '?.' is unnecessary • lib/widgets/main_content_area.dart:2408:73 • invalid_null_aware_operator
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2408:75 • deprecated_member_use
+warning • The operand can't be 'null', so the condition is always 'true' • lib/widgets/main_content_area.dart:2479:57 • unnecessary_null_comparison
+warning • The operand can't be 'null', so the condition is always 'true' • lib/widgets/main_content_area.dart:2493:57 • unnecessary_null_comparison
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2527:77 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2528:80 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2550:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2565:51 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:2769:40 • deprecated_member_use
+warning • The value of the local variable 'currentPost' isn't used • lib/widgets/main_content_area.dart:2806:42 • unused_local_variable
+warning • The value of the local variable 'isDark' isn't used • lib/widgets/main_content_area.dart:2934:15 • unused_local_variable
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:3175:28 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:3176:31 • deprecated_member_use
+warning • The left operand can't be null, so the right operand is never executed • lib/widgets/main_content_area.dart:3337:49 • dead_null_aware_expression
+warning • The left operand can't be null, so the right operand is never executed • lib/widgets/main_content_area.dart:3337:94 • dead_null_aware_expression
+warning • The operand can't be 'null', so the condition is always 'false' • lib/widgets/main_content_area.dart:3339:26 • unnecessary_null_comparison
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:3478:18 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:3479:20 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/main_content_area.dart:3481:25 • prefer_const_literals_to_create_immutables
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:3482:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:3484:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:3484:52 • prefer_const_constructors
+   info • Use 'const' for final variables initialized to a constant value • lib/widgets/main_content_area.dart:3841:9 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • lib/widgets/main_content_area.dart:3956:5 • prefer_const_declarations
+   info • Use 'const' for final variables initialized to a constant value • lib/widgets/main_content_area.dart:4069:5 • prefer_const_declarations
+warning • The declaration '_buildSuggestedContentSection' isn't referenced • lib/widgets/main_content_area.dart:4287:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4342:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4345:33 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:4530:25 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4601:41 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4640:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4643:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4691:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4759:58 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4759:90 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4848:74 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:4902:59 • deprecated_member_use
+warning • The value of the field '_showReplayButton' isn't used • lib/widgets/media_player_widgets.dart:108:8 • unused_field
+   info • Empty catch block • lib/widgets/media_player_widgets.dart:215:23 • empty_catches
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:364:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:503:36 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/widgets/media_player_widgets.dart:520:17 • prefer_const_constructors
+   info • Use 'const' with the constructor to improve performance • lib/widgets/media_player_widgets.dart:521:18 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:649:59 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:691:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:734:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:756:40 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:765:49 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:902:30 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/widgets/media_player_widgets.dart:905:16 • prefer_const_constructors
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/media_player_widgets.dart:918:40 • deprecated_member_use
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/widgets/scrollable_content_wrapper.dart:24:20 • deprecated_member_use
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/widgets/scrollable_content_wrapper.dart:26:26 • deprecated_member_use
+   info • 'MaterialStateProperty' is deprecated and shouldn't be used. Use WidgetStateProperty instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/widgets/scrollable_content_wrapper.dart:27:21 • deprecated_member_use
+   info • 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/widgets/scrollable_content_wrapper.dart:29:31 • deprecated_member_use
+   info • 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/widgets/scrollable_content_wrapper.dart:30:31 • deprecated_member_use
+   info • 'MaterialState' is deprecated and shouldn't be used. Use WidgetState instead. Moved to the Widgets layer to make code available outside of Material. This feature was deprecated after v3.19.0-0.3.pre • lib/widgets/scrollable_content_wrapper.dart:31:31 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/scrollable_content_wrapper.dart:33:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/scrollable_content_wrapper.dart:34:32 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/scrollable_content_wrapper.dart:37:30 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/scrollable_content_wrapper.dart:38:30 • deprecated_member_use
+warning • The value of the local variable 'isMobile' isn't used • lib/widgets/top_search_bar.dart:54:11 • unused_local_variable
+
+306 issues found. (ran in 6.8s)

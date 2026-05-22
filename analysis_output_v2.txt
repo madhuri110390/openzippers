@@ -1,0 +1,35 @@
+Analyzing openzippers...                                        
+
+   info • 'dialogBackgroundColor' is deprecated and shouldn't be used. Use DialogThemeData.backgroundColor instead. This feature was deprecated after v3.27.0-0.1.pre • lib/main.dart:75:9 • deprecated_member_use
+   info • Statements in an if should be enclosed in a block • lib/models/mock_data.dart:129:22 • curly_braces_in_flow_control_structures
+   info • Statements in an if should be enclosed in a block • lib/models/mock_data.dart:130:28 • curly_braces_in_flow_control_structures
+   info • Unnecessary braces in a string interpolation • lib/models/mock_data.dart:153:37 • unnecessary_brace_in_string_interps
+warning • The declaration '_onMakeFree' isn't referenced • lib/screens/create_post_screen.dart:36:8 • unused_element
+warning • A value for optional parameter 'strokeWidth' isn't ever given • lib/screens/create_post_screen.dart:473:51 • unused_element_parameter
+warning • A value for optional parameter 'gap' isn't ever given • lib/screens/create_post_screen.dart:473:75 • unused_element_parameter
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/home_screen.dart:504:64 • deprecated_member_use
+   info • The 'children' argument should be last in widget constructor invocations • lib/screens/home_screen.dart:509:19 • sort_child_properties_last
+warning • Unused import: '../widgets/main_content_area.dart' • lib/screens/profile_screen.dart:5:8 • unused_import
+warning • The declaration '_buildUserSearchResults' isn't referenced • lib/screens/profile_screen.dart:239:10 • unused_element
+warning • Unused import: 'login_screen.dart' • lib/screens/settings_screen.dart:3:8 • unused_import
+   info • 'value' is deprecated and shouldn't be used. Use initialValue instead. This will set the initial value for the form field. This feature was deprecated after v3.33.0-1.0.pre • lib/screens/settings_screen.dart:268:11 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/suggestions_screen.dart:134:33 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/suggestions_screen.dart:139:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/screens/suggestions_screen.dart:152:50 • deprecated_member_use
+warning • The declaration '_filteredUsers' isn't referenced • lib/widgets/main_content_area.dart:84:22 • unused_element
+warning • The declaration '_buildUserCard' isn't referenced • lib/widgets/main_content_area.dart:264:10 • unused_element
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:272:54 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:320:45 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:322:47 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:323:35 • deprecated_member_use
+   info • 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss • lib/widgets/main_content_area.dart:354:41 • deprecated_member_use
+   info • Use 'const' with the constructor to improve performance • lib/widgets/main_content_area.dart:649:18 • prefer_const_constructors
+   info • Use 'const' literals as arguments to constructors of '@immutable' classes • lib/widgets/main_content_area.dart:651:23 • prefer_const_literals_to_create_immutables
+warning • The value of the local variable 'theme' isn't used • lib/widgets/main_content_area.dart:831:11 • unused_local_variable
+   info • The private field _showAll could be 'final' • lib/widgets/main_content_area.dart:988:8 • prefer_final_fields
+warning • The value of the field '_showAll' isn't used • lib/widgets/main_content_area.dart:988:8 • unused_field
+   info • Use 'const' with the constructor to improve performance • lib/widgets/media_player_widgets.dart:82:13 • prefer_const_constructors
+warning • The value of the local variable 'isMobile' isn't used • lib/widgets/top_search_bar.dart:35:11 • unused_local_variable
+   info • 'activeColor' is deprecated and shouldn't be used. Use activeThumbColor instead. This feature was deprecated after v3.31.0-2.0.pre • lib/widgets/top_search_bar.dart:229:15 • deprecated_member_use
+
+31 issues found. (ran in 1.3s)
