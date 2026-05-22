@@ -167,6 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           state == AppLifecycleState.detached) {
         _saveNotifications();
         _saveUserPosts();
+        _saveCommunityPosts();
       } else if (state == AppLifecycleState.resumed) {
         _loadRelationships();
       }
@@ -207,6 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _pageController.dispose();
     _cartItemsNotifier.dispose();
     _notificationsNotifier.dispose();
+    _saveCommunityPosts();
     super.dispose();
   }
 
@@ -423,6 +425,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     if (mounted) setState(() => _authToken = authToken);
     final bool isArtistPref = prefs.getBool('is_artist') ?? false;
     final bool isMigrated = prefs.getBool('db_migrated') ?? false;
+    if (_communityPosts.isEmpty) {
+      final cached = _loadCachedFeed(prefs);
+      if (cached.isNotEmpty && mounted) {
+        setState(() => _communityPosts = cached);
+      }
+    }
 // Pre-populate _allUsers so _getCurrentUser() works immediately
     if (_allUsers.isEmpty && savedName != null && currentUsername != null) {
       setState(() {
@@ -455,12 +463,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // Cold-start cache: show last-known feed immediately so the home
     // screen has content the moment the app reopens (even before the
     // network call resolves, or when offline).
-    if (_communityPosts.isEmpty) {
-      final cached = _loadCachedFeed(prefs);
-      if (cached.isNotEmpty && mounted) {
-        setState(() => _communityPosts = cached);
-      }
-    }
+
 
     // if (authToken != null && authToken.isNotEmpty && !_feedLoaded) {
     //   try {
@@ -687,6 +690,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _upcomingRenewalNotificationsEnabled = prefs.getBool(
         'upcoming_renewal_notifications_enabled_${currentUser.username}') ??
         false;
+    if (authToken != null && authToken.isNotEmpty) {
+      try {
+        await ref.read(feedViewModelProvider.notifier).loadFeed();
+
+        final feedState = ref.read(feedViewModelProvider);
+
+        if (feedState.posts.isNotEmpty && mounted) {
+          setState(() {
+            _communityPosts = feedState.posts.map((p) => {
+              'id': p.id,
+              'title': p.title,
+              'author': p.user.name,
+              'avatar': p.user.avatar ?? '',
+              'text': p.text,
+              'image': p.image,
+              'video_url': p.videoUrl,
+              'audio_url': p.audioUrl,
+              'literature_url': p.literatureUrl,
+              'fans_status': p.fansStatus,
+            }).toList();
+          });
+        }
+      } catch (e) {
+        debugPrint('Feed API Error: $e');
+      }
+    }
 
     _loadSavedNotifications(prefs);
     _loadNotifications();

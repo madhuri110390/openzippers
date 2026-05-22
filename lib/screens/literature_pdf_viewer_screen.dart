@@ -253,6 +253,7 @@ class _LiteraturePdfViewerScreenState
     // ── PDF render ─────────────────────────────────────────────────────────
     return PDFView(
       filePath: _localPath!,
+      defaultPage: 0,
       enableSwipe: true,
       swipeHorizontal: false,   // vertical scroll (book feel)
       autoSpacing: true,

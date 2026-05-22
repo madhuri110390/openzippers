@@ -95,10 +95,7 @@ class FeedViewModel extends StateNotifier<FeedState> {
   // ───────────────────────────────────────────────────────────────────────────
   // INITIAL LOAD
   // ───────────────────────────────────────────────────────────────────────────
-
   Future<void> loadFeed({String tab = 'main'}) async {
-    if (!state.isInitial) return;
-
     state = state.copyWith(status: FeedStatus.loading);
 
     await Future.wait([

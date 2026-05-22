@@ -345,9 +345,13 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
 
         if (targetPath.startsWith('http') || targetPath.contains('ozvault')) {
           try {
-            final uri = targetPath.startsWith('http') 
-              ? Uri.parse(targetPath) 
-              : Uri.parse('https://oz.ozvault.io/$targetPath'); // Fallback base URL for ozvault
+            final uri = Uri.parse(
+              Uri.encodeFull(
+                targetPath.startsWith('http')
+                    ? targetPath
+                    : 'https://oz.ozvault.io/$targetPath',
+              ),
+            );// Fallback base URL for ozvault
             
              // Check if URI is valid
             if (!uri.hasScheme || uri.host.isEmpty) {
@@ -388,7 +392,14 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         }
 
         // Timeout protection: If init takes > 4s, abort to free up queue
-        await controller.initialize().timeout(const Duration(seconds: 4));
+        try {
+          await controller.initialize().timeout(
+            const Duration(seconds: 4),
+          );
+        } catch (e) {
+          debugPrint("VIDEO INIT ERROR: $e");
+          rethrow;
+        }
 
         // rest of initialization logic
         // Check for Cancellation/Disposal
