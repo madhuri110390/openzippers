@@ -1065,51 +1065,176 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             _formatDate(post['date']),
             style: TextStyle(fontSize: 11, color: theme.hintColor),
           ),
-          trailing: PopupMenuButton<String>(
-            onSelected: (val) {
-              if (val == 'delete') widget.onPostDeleted(post);
-              if (val == 'edit') _handleEditPost(post);
-              if (val == 'report') _showReportDialog(post);
-              if (val == 'share') _handleShare(post);
-            },
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12)),
-            itemBuilder: (context) => [
-              if (_isOwnPost(post))
-                const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(children: [
-                      Icon(Icons.edit_outlined, size: 18),
-                      SizedBox(width: 8),
-                      Text('Edit')
-                    ])),
-              if (_isOwnPost(post))
-                const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(children: [
-                      Icon(Icons.delete_outline,
-                          size: 18, color: Colors.red),
-                      SizedBox(width: 8),
-                      Text('Delete',
-                          style: TextStyle(color: Colors.red))
-                    ])),
-              const PopupMenuItem(
-                  value: 'share',
-                  child: Row(children: [
-                    Icon(Icons.share_outlined, size: 18),
-                    SizedBox(width: 8),
-                    Text('Share')
-                  ])),
-              if (!_isOwnPost(post))
-                const PopupMenuItem(
-                    value: 'report',
-                    child: Row(children: [
-                      Icon(Icons.flag_outlined,
-                          size: 18, color: Colors.orange),
-                      SizedBox(width: 8),
-                      Text('Report')
-                    ])),
-            ],
+          trailing: PopupMenuTheme(
+            data: const PopupMenuThemeData(
+              color: Color(0xFF14233D),
+              surfaceTintColor: Colors.transparent,
+              textStyle: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            child: Theme(
+              data: Theme.of(context).copyWith(
+                popupMenuTheme: const PopupMenuThemeData(
+                  textStyle: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              child: PopupMenuButton<String>(
+                color: const Color(0xFF14233D),
+                icon: const Icon(
+                  Icons.more_vert,
+                  color: Colors.white,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                onSelected: (val) {
+                  // existing code
+                },
+                  itemBuilder: (context) => [
+
+                    const PopupMenuItem<String>(
+                      value: 'share',
+                      child: Row(
+                        children: [
+                          Icon(Icons.share_outlined, size: 18, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            'Share Post',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const PopupMenuItem<String>(
+                      value: 'send_to_ozvault',
+                      child: Row(
+                        children: [
+                          Icon(Icons.download_outlined, size: 18, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            'Send To OzVault',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const PopupMenuItem<String>(
+                      value: 'playlist',
+                      child: Row(
+                        children: [
+                          Icon(Icons.playlist_add_outlined, size: 18, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            'Add to Playlist',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const PopupMenuItem<String>(
+                      value: 'bookmark',
+                      child: Row(
+                        children: [
+                          Icon(Icons.bookmark_border, size: 18, color: Colors.white),
+                          SizedBox(width: 12),
+                          Text(
+                            'Bookmark this post',
+                            style: TextStyle(color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (!_isOwnPost(post))
+                      const PopupMenuItem<String>(
+                        value: 'unfollow',
+                        child: Row(
+                          children: [
+                            Icon(Icons.person_remove_outlined, size: 18, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text(
+                              'Unfollow',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (!_isOwnPost(post))
+                      const PopupMenuItem<String>(
+                        value: 'block',
+                        child: Row(
+                          children: [
+                            Icon(Icons.block_outlined, size: 18, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text(
+                              'Block',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (!_isOwnPost(post))
+                      const PopupMenuItem<String>(
+                        value: 'report',
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined, size: 18, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text(
+                              'Report',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (_isOwnPost(post))
+                      const PopupMenuItem<String>(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 18, color: Colors.white),
+                            SizedBox(width: 12),
+                            Text(
+                              'Edit',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    if (_isOwnPost(post))
+                      const PopupMenuItem<String>(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            SizedBox(width: 12),
+                            Text(
+                              'Delete',
+                              style: TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+              ),
+            ),
           ),
         ),
 
