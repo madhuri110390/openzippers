@@ -81,10 +81,30 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => const Center(child: Text("Failed to load connections", style: TextStyle(color: Colors.red))),
       data: (response) {
-        final followers = response.data.followers;
-        final following = response.data.following;
-        final blocked = []; // Assuming blocked is handled elsewhere or empty for now
 
+
+       //  final followers = response.data.followers;
+       //
+       // final following = response.data.following;
+       //
+       //
+       //
+       //  final blocked = [
+       //    ...followers.where((u) => u.isBlocked == true),
+       //    ...following.where((u) => u.isBlocked == true),
+       //  ];
+        final followers = response.data.followers
+            .where((u) => u.isBlocked != true)
+            .toList();
+
+        final following = response.data.following
+            .where((u) => u.isBlocked != true)
+            .toList();
+
+        final blocked = [
+          ...response.data.followers.where((u) => u.isBlocked == true),
+          ...response.data.following.where((u) => u.isBlocked == true),
+        ];
         final users = _selectedTabIndex == 0 ? followers : _selectedTabIndex == 1 ? following : blocked;
 
         return Container(
@@ -106,7 +126,7 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                     children: [
                       Expanded(child: _buildTab(theme, "Followers", followers.length.toString(), _selectedTabIndex == 0, 0)),
                       Expanded(child: _buildTab(theme, "Following", following.length.toString(), _selectedTabIndex == 1, 1)),
-                      Expanded(child: _buildTab(theme, "Blocked", "0", _selectedTabIndex == 2, 2)),
+                      Expanded(child: _buildTab(theme, "Blocked", blocked.length.toString(), _selectedTabIndex == 2, 2)),
                     ],
                   ),
                 ),
@@ -158,13 +178,23 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
                                 SizedBox(
                                   height: 38,
                                   child: ElevatedButton(
-                                    onPressed: () async {
-                                      final res = await ref.read(blockProvider.notifier).toggleBlock(user.id);
-                                      if (res != null && mounted) {
-                                        setState(() { user.isBlocked = res.data.isBlocked; });
-                                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.message)));
-                                      }
-                                    },
+                                      onPressed: () async {
+                                        final res = await ref.read(blockProvider.notifier).toggleBlock(user.id);
+
+                                        if (res != null && mounted) {
+                                          setState(() {
+                                            user.isBlocked = res.data.isBlocked;
+                                            if(user.isBlocked== false){
+                                              ref.invalidate(connectionsProvider(widget.username));
+                                            }
+
+                                          });
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(SnackBar(content: Text(res.message)));
+                                        }
+
+                                      },
+
                                     style: ElevatedButton.styleFrom(
                                       backgroundColor: (user.isBlocked ?? false) ? Colors.grey : const Color(0xFFFF2D2D),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

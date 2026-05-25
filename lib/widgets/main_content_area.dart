@@ -20,6 +20,7 @@ import '../models/mock_data.dart';
 import 'media_player_widgets.dart';
 import 'rating_dialog.dart';
 import 'comment_section.dart';
+import 'profile_screen.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
@@ -27,6 +28,7 @@ import '../helpers/translations.dart';
 import '../helpers/database_helper.dart';
 import 'albums_view.dart';
 import 'tip_dialog.dart';
+import '../viewmodels/register_view_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -45,6 +47,7 @@ class MainContentArea extends ConsumerStatefulWidget {
   final Function(Map<String, dynamic>, String, {dynamic extraData}) onPostAction;
   final Function(Map<String, dynamic>)? onAddToCart;
   final MockUser currentUser;
+  final MockUser? user;
   final List<Map<String, dynamic>> readPosts;
   final List<Map<String, dynamic>> watchedPosts;
   final List<Map<String, dynamic>> bookmarkedPosts;
@@ -70,6 +73,7 @@ class MainContentArea extends ConsumerStatefulWidget {
     required this.searchQuery,
     required this.selectedUser,
     required this.users,
+    this.user,
     required this.onPostCreated,
     required this.onPostDeleted,
     required this.onPostAction,
@@ -99,6 +103,17 @@ class MainContentArea extends ConsumerStatefulWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class MainContentAreaState extends ConsumerState<MainContentArea>
     with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+  MockUser? _localUserOverride;
+
+  MockUser get effectiveUser {
+    if (_localUserOverride != null) return _localUserOverride!;
+    final baseUser = widget.user ?? widget.currentUser;
+    if (widget.users.isNotEmpty) {
+      final idx = widget.users.indexWhere((u) => u.username == baseUser.username);
+      if (idx != -1) return widget.users[idx];
+    }
+    return baseUser;
+  }
   @override
   bool get wantKeepAlive => true;
 
@@ -1019,6 +1034,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final theme = Theme.of(context);
     final author = _getAuthor(post);
     final postIdStr = post['id']?.toString() ?? '';
+
     final commentCount = post['commentsCount'] ??
         _countTopLevelComments(post['comments'] as List? ?? []);
     final isLiked =
@@ -1046,7 +1062,12 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           leading: GestureDetector(
             onTap: () => widget.onUserTap?.call(author),
-            child: _buildAvatar(author.avatar, radius: 22),
+            // child: _buildAvatar(author.avatar, radius: 22),
+            child: _buildAvatar(
+              post['avatar'] ?? '',
+              radius: 22,
+            ),
+
           ),
           title: GestureDetector(
             onTap: () => widget.onUserTap?.call(author),
@@ -1054,7 +1075,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               children: [
                 Flexible(
                   child: Text(
-                    post['author'] ?? 'User',
+                    // post['author'] ?? 'User',
+             post['author']?.toString().trim() ?? '',
                     style: const TextStyle(
                         fontSize: 24,
                         color: Colors.white,
@@ -1623,11 +1645,12 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   }
 
   // ── Avatar helper ──────────────────────────────────────────────────────────
-  Widget _buildAvatar(String avatar, {double radius = 20}) {
+ Widget _buildAvatar(String avatar, {double radius = 20}) {
     if (avatar.startsWith('http')) {
       return CircleAvatar(
         radius: radius,
         backgroundImage: NetworkImage(avatar),
+
       );
     } else if (avatar.isNotEmpty) {
       return CircleAvatar(
@@ -1640,6 +1663,21 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       backgroundImage: NetworkImage(avatar),
     );
   }
+  // Widget _buildAvatar(String avatar, {double radius = 20}) {
+  //   if (avatar.isNotEmpty && avatar.startsWith('http')) {
+  //     return CircleAvatar(
+  //       radius: radius,
+  //       backgroundImage: NetworkImage(avatar),
+  //     );
+  //   }
+  //
+  //
+  //   return CircleAvatar(
+  //     radius: radius,
+  //     backgroundImage: NetworkImage(avatar),
+  //   );
+  // }
+
 
   // ── Shimmer / empty ────────────────────────────────────────────────────────
   Widget _buildShimmerLoader() {
