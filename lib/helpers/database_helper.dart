@@ -392,7 +392,8 @@ class DatabaseHelper {
   Future<int> insertPost(Map<String, dynamic> post) async {
     Database db = await database;
     return await db.transaction((txn) async {
-      final comments = post['comments'] as List?;
+      final comments =
+          (post['comments'] as List?) ?? [];
       final postMap = Map<String, dynamic>.from(post)
         ..remove('comments')
         ..remove('readCount')

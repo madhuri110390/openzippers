@@ -762,6 +762,79 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
   void _showRatingDialog(Map<String, dynamic> post) {}
   void _showInfoDialog(Map<String, dynamic> post) {}
+  void _showContentDetails(Map<String, dynamic> post) {
+    showDialog(
+      context: context,
+      builder: (_) {
+        return AlertDialog(
+          backgroundColor: Theme.of(context).brightness == Brightness.dark
+              ? const Color(0xFF1E2A44)
+              : Theme.of(context).textTheme.bodyLarge?.color,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Text(
+            "Content Details",
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _row(context, "Likes", "${post['likeCount'] ?? 0}"),
+              _row(context, "Comments", "${post['commentsCount'] ?? 0}"),
+              _row(context, "Type", "${post['type'] ?? post['post_type'] ?? 'N/A'}"),
+              _row(context, "Size", "${post['file_size'] ?? 'N/A'}"),
+            _row(
+              context,
+              "Dimension",
+                "${post['post_width'] ?? 0} × ${post['post_height'] ?? 0}",
+            ),
+              _row(
+                context,
+                "Uploaded On",
+                _formatDate(post['date']),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(BuildContext context, String title, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: isDark ? Colors.white70 : Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.end,
+              style: TextStyle(
+                color: isDark ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // BUILD
@@ -877,7 +950,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               'No users found for\n"${widget.searchQuery}"',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontSize: 14,
                   height: 1.5),
             ),
@@ -1034,7 +1107,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final theme = Theme.of(context);
     final author = _getAuthor(post);
     final postIdStr = post['id']?.toString() ?? '';
-
+    final rating = post['my_rating'] ??
+        post['user_rating'] ??
+        0;
     final commentCount = post['commentsCount'] ??
         _countTopLevelComments(post['comments'] as List? ?? []);
     final isLiked =
@@ -1048,7 +1123,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         vertical: 8,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A2740),
+        color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: Colors.white10,
@@ -1077,11 +1152,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                   child: Text(
                     // post['author'] ?? 'User',
              post['author']?.toString().trim() ?? '',
-                    style: const TextStyle(
-                        fontSize: 24,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(
+            fontSize: 24,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+            fontWeight: FontWeight.bold,
+          ),
                   ),
                 ),
                 if (post['verified'] == true || author.isVerified)
@@ -1096,25 +1171,27 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           subtitle: Text(
             _formatDate(post['date']),
             style: TextStyle(
-              color: Colors.white,
+              color: Theme.of(context).hintColor,
               fontSize: 12,
             ),
           ),
           trailing: PopupMenuTheme(
-            data: const PopupMenuThemeData(
-              color: Color(0xFF14233D),
+            data: PopupMenuThemeData(
+              color: const Color(0xFF14233D),
               surfaceTintColor: Colors.transparent,
               textStyle: TextStyle(
-                color: Colors.white,
+                color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
               ),
             ),
             child: Theme(
               data: Theme.of(context).copyWith(
-                popupMenuTheme: const PopupMenuThemeData(
+                popupMenuTheme: PopupMenuThemeData(
                   textStyle: TextStyle(
-                    color: Colors.white,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1122,9 +1199,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               ),
               child: PopupMenuButton<String>(
                 color: const Color(0xFF14233D),
-                icon: const Icon(
+                icon: Icon(
                   Icons.more_vert,
-                  color: Colors.white,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
                 ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -1281,8 +1360,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
             child: Text(
               post['title'],
-              style: const TextStyle(
-                  color: Colors.white,
+              style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                   fontWeight: FontWeight.bold, fontSize: 16),
 
             ),
@@ -1298,11 +1377,15 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               if (_isHtmlContent(raw)) {
                 return Text(_stripHtml(raw),
                     maxLines: 4, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(  color: Colors.white,fontSize: 13, height: 1.5));
+                    style: TextStyle(  color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,fontSize: 13, height: 1.5));
               }
               return Text(raw,
                   maxLines: 4, overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(  color: Colors.white,fontSize: 13, height: 1.5));
+                  style: TextStyle(  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,fontSize: 13, height: 1.5));
             }),
           ),
 
@@ -1321,7 +1404,27 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     child: _buildMediaPreview(post),
     ),
     ),
-
+      Positioned(
+        top: 10,
+        left: 10,
+        child: InkWell(
+          onTap: () => _showContentDetails(post),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Icon(
+              Icons.info_outline,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+              size: 18,
+            ),
+          ),
+        ),
+      ),
     if (!_isUnlocked(post))
     Positioned.fill(
     child: _buildLockedOverlay(context, post),
@@ -1344,8 +1447,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           child:Row(
             children: [
               _buildActionButton(
-                icon: isLiked ? Icons.favorite : Icons.favorite_border,
-                color: isLiked ? _kPink : Colors.white,
+                icon: isLiked ? Icons.favorite :  Icons.favorite_border,
+               color: Theme.of(context).brightness == Brightness.dark
+    ? Colors.white
+        : Colors.black54,
                 label: '${post['likeCount'] ?? 0}',
                 onTap: () => widget.onPostAction(post, 'Like'),
               ),
@@ -1354,14 +1459,32 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                 icon: Icons.chat_bubble_outline_rounded,
                 color: _expandedPostIds.contains(postIdStr)
                     ? _kPink
-                    : Colors.white,
+                    : Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black87,
                 label: '$commentCount',
                 onTap: () => _toggleComments(postIdStr),
               ),
 
-              const Icon(
-                Icons.star_border,
-                color: Colors.white,
+              // const Icon(
+              //   Icons.star_border,
+              //   color: Colors.white,
+              // ),
+              GestureDetector(
+                onTap: () => _showRatingDialog(post),
+                child: Row(
+                  children: [
+                    Icon(
+                      rating > 0 ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      rating.toString(),
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -1397,8 +1520,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             color: Colors.white, size: 13),
         const SizedBox(width: 5),
         Text('$count',
-            style: const TextStyle(
-                color: Colors.white,
+            style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontSize: 12,
                 fontWeight: FontWeight.bold)),
       ]),
@@ -1422,8 +1545,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             const SizedBox(width: 4),
             Text(
               label,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),

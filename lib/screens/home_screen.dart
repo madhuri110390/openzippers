@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/translations.dart';
 import 'package:sqflite/sqflite.dart';
 import '../network/api_client.dart';
+import '../providers/rating_provider.dart';
 import '../viewmodels/comment_viewmodel.dart';
 import '../viewmodels/search_viewmodel.dart';
 import 'literature_pdf_viewer_screen.dart';
@@ -359,62 +362,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       debugPrint('=== FEED ERROR: ${feedState.errorMessage} ===');
 
       if (feedState.posts.isNotEmpty && mounted) {
-        final mapped = feedState.posts.map((p) => {
-          'id': p.id,
-          'title': p.title,
-          'author': p.user.name,
+        // final mapped = feedState.posts.map((p) => {
+        //   'id': p.id,
+        //   'title': p.title,
+        //   'author': p.user.name,
+        //
+        //   // ── Avatar fixes ──────────────────────────
+        //   'avatar': p.user.avatar ?? '',
+        //   'avatar_url': p.user.avatar ?? '',
+        //   'authorAvatar': p.user.avatar ?? '',   // ← ADD
+        //   'userAvatar': p.user.avatar ?? '',     // ← ADD
+        //
+        //   'text': p.text,
+        //   'content': p.text,                     // ← ADD (some widgets use 'content')
+        //
+        //   // ── Type fixes ────────────────────────────
+        //   'type': _toWidgetType(p.postType.name), // ← ADD (widget reads 'type')
+        //   'post_type': p.postType.name,           // keep existing
+        //
+        //   // ── Media URLs ────────────────────────────
+        //   'image': p.image,
+        //   'audio_url': p.audioUrl,
+        //   'video_url': p.videoUrl,
+        //   'literature_url': p.literatureUrl,
+        //   'preview_url': p.previewUrl,
+        //   'duration': p.duration,
+        //
+        //   'likeCount': p.likesCount,
+        //   'commentsCount': p.commentsCount,
+        //   'comments': p.comments,
+        //   'is_liked': p.isLiked,
+        //   'is_bookmarked': p.isBookmarked,
+        //   'is_premium': p.isPremium,
+        //   'price': p.price,
+        //   'in_cart': p.inCart,
+        //   'is_purchased': p.isPurchased,
+        //   'vat_percent': p.vatPercent,
+        //   'average_rating': p.averageRating,
+        //   'total_ratings': p.totalRatings,
+        //   'date': p.createdAt,
+        //   'views': p.views,
+        //   'fans_status': p.fansStatus,
+        //   'isUserPost': false,
+        //   'verified': p.user.verified,           // ← ADD
+        // }).toList();
 
-          // ── Avatar fixes ──────────────────────────
-          'avatar': p.user.avatar ?? '',
-          'avatar_url': p.user.avatar ?? '',
-          'authorAvatar': p.user.avatar ?? '',   // ← ADD
-          'userAvatar': p.user.avatar ?? '',     // ← ADD
+        final mapped = <Map<String, dynamic>>[];
 
-          'text': p.text,
-          'content': p.text,                     // ← ADD (some widgets use 'content')
+        for (final p in feedState.posts) {
+          int width = 0;
+          int height = 0;
 
-          // ── Type fixes ────────────────────────────
-          'type': _toWidgetType(p.postType.name), // ← ADD (widget reads 'type')
-          'post_type': p.postType.name,           // keep existing
+          if (p.image != null && p.image!.isNotEmpty) {
+            try {
+              final size = await getImageSize(p.image!);
+              width = size.width.toInt();
+              height = size.height.toInt();
+            } catch (_) {}
+          }
 
-          // ── Media URLs ────────────────────────────
-          'image': p.image,
-          'audio_url': p.audioUrl,
-          'video_url': p.videoUrl,
-          'literature_url': p.literatureUrl,
-          'preview_url': p.previewUrl,
-          'duration': p.duration,
+          mapped.add({
+            'id': p.id,
+            'title': p.title,
+            'author': p.user.name,
 
-          'likeCount': p.likesCount,
-          'commentsCount': p.commentsCount,
-          'comments': p.comments,
-          'is_liked': p.isLiked,
-          'is_bookmarked': p.isBookmarked,
-          'is_premium': p.isPremium,
-          'price': p.price,
-          'in_cart': p.inCart,
-          'is_purchased': p.isPurchased,
-          'vat_percent': p.vatPercent,
-          'average_rating': p.averageRating,
-          'total_ratings': p.totalRatings,
-          'date': p.createdAt,
-          'views': p.views,
-          'fans_status': p.fansStatus,
-          'isUserPost': false,
-          'verified': p.user.verified,           // ← ADD
-        }).toList();
+            'average_rating': p.averageRating,
+            'total_ratings': p.totalRatings,
 
-        setState(() {
-          _communityPosts = mapped;
-          _feedLoaded = true;
-        });
+            'user_rating': p.userRating,
 
-        await _saveCachedFeed(prefs, mapped);
-      }
-    } catch (e, stack) {
+            'image': p.image,
+            'likeCount': p.likesCount,
+            'commentsCount': p.commentsCount,
+          });
+          setState(() {
+            _communityPosts = mapped;
+            _feedLoaded = true;
+          });
+
+          await _saveCachedFeed(prefs, mapped);
+        }
+      }} catch (e, stack) {
       debugPrint('=== FEED EXCEPTION: $e ===');
       debugPrint('=== STACK: $stack ===');
     }
+  }
+  Future<Size> getImageSize(String imageUrl) async {
+    final completer = Completer<Size>();
+
+    final image = NetworkImage(imageUrl);
+
+    image.resolve(const ImageConfiguration()).addListener(
+      ImageStreamListener((info, _) {
+        completer.complete(
+          Size(
+            info.image.width.toDouble(),
+            info.image.height.toDouble(),
+          ),
+        );
+      }),
+    );
+
+    return completer.future;
   }
   Future<void> _loadData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1526,13 +1575,67 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  // void _showRatingDialog(Map<String, dynamic> post) {
+  //   showDialog(
+  //     context: context,
+  //     builder: (context) => RatingDialog(
+  //       post: post,
+  //       onSubmit: (stars) {
+  //         _handlePostAction(post, 'SubmitRating', extraData: stars);
+  //       },
+  //     ),
+  //   );
+  // }
   void _showRatingDialog(Map<String, dynamic> post) {
     showDialog(
       context: context,
-      builder: (context) => RatingDialog(
+      builder: (_) => RatingDialog(
         post: post,
-        onSubmit: (stars) {
-          _handlePostAction(post, 'SubmitRating', extraData: stars);
+        onSubmit: (stars) async {
+          try {
+            final postId = int.tryParse(post['id'].toString());
+
+            if (postId == null) return;
+
+            final res = await ref
+                .read(submitRatingProvider.notifier)
+                .submitRating(
+              postId: postId,
+              rating: stars,
+            );
+
+            await ref
+                .read(submitRatingProvider.notifier)
+                .submitRating(
+              postId: postId,
+              rating: stars,
+            );
+
+            await ref.read(feedViewModelProvider.notifier).loadFeed();
+
+            if (!mounted) return;
+
+            setState(() {
+              post['my_rating'] = stars;
+              post['user_rating'] = stars;
+            });
+
+
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Rating submitted successfully'),
+              ),
+            );
+          } catch (e) {
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Rating failed: $e'),
+              ),
+            );
+          }
         },
       ),
     );

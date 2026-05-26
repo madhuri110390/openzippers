@@ -90,9 +90,26 @@ class CommentSectionState extends State<CommentSection> {
     }
   }
 
+  // void _handleReply(Map<String, dynamic> comment) {
+  //   setState(() {
+  //     if (_replyingTo != null && _replyingTo!['id'] == comment['id']) {
+  //       _replyingTo = null;
+  //       _focusNode.unfocus();
+  //     } else {
+  //       _replyingTo = comment;
+  //       _focusNode.requestFocus();
+  //     }
+  //   });
+  // }
   void _handleReply(Map<String, dynamic> comment) {
+    final currentId = int.tryParse(comment['id'].toString());
+
     setState(() {
-      if (_replyingTo != null && _replyingTo!['id'] == comment['id']) {
+      final replyId = _replyingTo == null
+          ? null
+          : int.tryParse(_replyingTo!['id'].toString());
+
+      if (replyId == currentId) {
         _replyingTo = null;
         _focusNode.unfocus();
       } else {
@@ -101,7 +118,6 @@ class CommentSectionState extends State<CommentSection> {
       }
     });
   }
-
   void _cancelReply() {
     setState(() => _replyingTo = null);
   }
@@ -112,12 +128,25 @@ class CommentSectionState extends State<CommentSection> {
 
     setState(() => _isSubmitting = true);
 
-    widget.onPostAction(widget.post, 'SubmitComment', extraData: {
-      'text': text,
-      'parentId': _replyingTo?['id'],
-      'replyToUser': _replyingTo?['author'],
-    });
-
+    // widget.onPostAction(widget.post, 'SubmitComment', extraData: {
+    //   'text': text,
+    //   'parentId': _replyingTo?['id'],
+    //   'replyToUser': _replyingTo?['author'],
+    // });
+    widget.onPostAction(
+      widget.post,
+      'SubmitComment',
+      extraData: {
+        'text': text,
+        'parentId': int.tryParse(
+          _replyingTo?['id']?.toString() ?? '',
+        ),
+        'replyToUser':
+        _replyingTo?['author'] ??
+            _replyingTo?['user']?['name'] ??
+            'User',
+      },
+    );
     _commentController.clear();
     setState(() {
       _isSubmitting = false;
@@ -129,12 +158,36 @@ class CommentSectionState extends State<CommentSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rawComments = (widget.post['comments'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    final rawComments =
+    (widget.post['comments'] as List? ?? [])
+        .where((e) => e != null)
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
 
+    // final Set<int> seenIds = {};
+    // final List<Map<String, dynamic>> comments = [];
+    // for (final comment in rawComments) {
+    //   final id = comment['id'] as int?;
+    //   if (id != null) {
+    //     if (!seenIds.contains(id)) {
+    //       seenIds.add(id);
+    //       comments.add(comment);
+    //     }
+    //   } else {
+    //     comments.add(comment);
+    //   }
+    // }
     final Set<int> seenIds = {};
     final List<Map<String, dynamic>> comments = [];
+
     for (final comment in rawComments) {
-      final id = comment['id'] as int?;
+      final dynamic rawId = comment['id'];
+
+      final int? id = rawId is int
+          ? rawId
+          : int.tryParse(rawId?.toString() ?? '');
+
       if (id != null) {
         if (!seenIds.contains(id)) {
           seenIds.add(id);
@@ -219,7 +272,8 @@ class CommentSectionState extends State<CommentSection> {
               child: Row(
                 children: [
                   Flexible(
-                    child: Text("${context.tr.replyingTo} ${_replyingTo!['author']}",
+                    child: Text(
+                        "${context.tr.replyingTo} ${_replyingTo?['author'] ?? _replyingTo?['user']?['name'] ?? 'User'}",
                       maxLines: 1, overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 12, color: Color(0xFFDB2777))),
                   ),
@@ -274,7 +328,11 @@ class CommentSectionState extends State<CommentSection> {
                   style: const TextStyle(fontSize: 14),
                   decoration: InputDecoration(
                     hintText: _replyingTo != null
-                        ? context.tr.replyToAuthor(_replyingTo!['author'])
+                        ? context.tr.replyToAuthor(
+                      (_replyingTo?['author'] ??
+                          _replyingTo?['user']?['name'] ??
+                          'User').toString(),
+                    )
                         : context.tr.writeSomething,
                     hintStyle: TextStyle(color: theme.hintColor, fontSize: 13),
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
@@ -294,30 +352,62 @@ class CommentSectionState extends State<CommentSection> {
     );
   }
 
-  Widget _buildCommentTree(Map<String, dynamic> comment, Map<int, List<Map<String, dynamic>>> groupedComments, ThemeData theme, {int depth = 0}) {
-    int? pid = comment['id'] is int ? comment['id'] : int.tryParse(comment['id'].toString());
-    final replies = pid != null ? (groupedComments[pid] ?? []) : [];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildCommentRow(comment, theme, depth: depth),
-        if (replies.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(left: 24.0),
-            child: Column(
-              children: replies.map((reply) => _buildCommentTree(reply, groupedComments, theme, depth: depth + 1)).toList(),
+  Widget _buildCommentTree(
+      Map<String, dynamic> comment,
+      Map<int, List<Map<String, dynamic>>> groupedComments,
+      ThemeData theme, {
+        int depth = 0,
+      }) {
+    try {
+      int? pid = comment['id'] is int
+          ? comment['id']
+          : int.tryParse(comment['id']?.toString() ?? '');
+
+      final replies = pid != null
+          ? (groupedComments[pid] ?? [])
+          : [];
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCommentRow(comment, theme, depth: depth),
+          if (replies.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(left: 24),
+              child: Column(
+                children: replies
+                    .map((reply) => _buildCommentTree(
+                  reply,
+                  groupedComments,
+                  theme,
+                  depth: depth + 1,
+                ))
+                    .toList(),
+              ),
             ),
-          ),
-      ],
-    );
+        ],
+      );
+    } catch (e, s) {
+      debugPrint('COMMENT TREE ERROR');
+      debugPrint(comment.toString());
+      debugPrint(e.toString());
+      debugPrint(s.toString());
+
+      return const SizedBox();
+    }
   }
 
   Widget _buildCommentRow(Map<String, dynamic> comment, ThemeData theme, {int depth = 0}) {
-    final authorName = comment['author'] ?? "";
+    final authorName =
+        comment['author'] ??
+            comment['user']?['name'];
+            'Unknown User';
     final commentText = comment['text'] ?? "";
     final isLiked = (comment['likes'] as List?)?.contains(widget.currentUser.username) ?? false;
     final likesCount = (comment['likes'] as List?)?.length ?? 0;
-
+    final avatar =
+        comment['avatar'] ??
+            comment['user']?['avatar'];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
@@ -335,8 +425,11 @@ class CommentSectionState extends State<CommentSection> {
             child: CircleAvatar(
               radius: 16,
               backgroundColor: theme.dividerColor,
-              backgroundImage: comment['avatar'] != null && comment['avatar'].toString().isNotEmpty
-                  ? NetworkImage(comment['avatar']) : null,
+              backgroundImage: avatar is String &&
+                  avatar.isNotEmpty &&
+                  avatar.startsWith('http')
+                  ? NetworkImage(avatar)
+                  : null,
               child: (comment['avatar'] == null || comment['avatar'].toString().isEmpty)
                   ? Text(authorName.isNotEmpty ? authorName[0].toUpperCase() : "?") : null,
             ),

@@ -6,8 +6,8 @@ class CommentUserData {
 
   factory CommentUserData.fromJson(Map<String, dynamic> json) {
     return CommentUserData(
-      name: json['name'] ?? '',
-      avatar: json['avatar'],
+      name: json['name']?.toString() ?? '',
+      avatar: json['avatar']?.toString(),
     );
   }
 }
@@ -33,14 +33,39 @@ class CommentData {
 
   factory CommentData.fromJson(Map<String, dynamic> json) {
     return CommentData(
-      id: json['id'] ?? 0,
-      postId: json['post_id'] ?? 0,
-      parentId: json['parent_id'],
-      user: CommentUserData.fromJson(json['user'] ?? {}),
+      // id: json['id'] ?? 0,
+      // postId: json['post_id'] ?? 0,
+      // parentId: json['parent_id'],
+      id: int.tryParse(json['id'].toString()) ?? 0,
+
+      postId: int.tryParse(
+        json['post_id'].toString(),
+      ) ?? 0,
+
+      parentId: json['parent_id'] == null
+          ? null
+          : int.tryParse(
+        json['parent_id'].toString(),
+      ),
+      user: json['user'] is Map
+          ? CommentUserData.fromJson(
+        Map<String, dynamic>.from(json['user']),
+      )
+          : CommentUserData(
+        name: 'Unknown User',
+        avatar: null,
+      ),
       text: json['text'] ?? '',
       time: json['time'] ?? '',
-      replies: (json['replies'] as List<dynamic>? ?? [])  // ← here
-          .map((r) => CommentData.fromJson(r as Map<String, dynamic>))
+
+      replies: (json['replies'] as List? ?? [])
+          .where((e) => e != null)
+          .whereType<Map>()
+          .map(
+            (e) => CommentData.fromJson(
+          Map<String, dynamic>.from(e),
+        ),
+      )
           .toList(),
     );
   }
@@ -53,7 +78,9 @@ class CommentData {
     'time': time,
     'parentId': parentId,
     'likes': [],
-    'timestamp': DateTime.now(),
+    // 'timestamp': DateTime.now(),
+    'timestamp': DateTime.tryParse(time) ??
+        DateTime.now(),
     'replies': replies.map((r) => r.toAppMap()).toList(),  // ← now works, r is CommentData
   };
 }

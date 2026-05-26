@@ -142,9 +142,17 @@ class MyAppState extends State<MyApp> {
         ),
         scaffoldBackgroundColor: const Color(0xFFF5F7FA),
         useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
+        textTheme: GoogleFonts.interTextTheme(
+          ThemeData.light().textTheme,
+        ).apply(
+          bodyColor: Theme.of(context).colorScheme.onSurface,
+          displayColor: Theme.of(context).colorScheme.onSurface,
+        ),
+        iconTheme: IconThemeData(
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+        appBarTheme: AppBarTheme(
+          backgroundColor: Theme.of(context).colorScheme.surface,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),
@@ -199,7 +207,15 @@ class MyAppState extends State<MyApp> {
         dividerColor: const Color(0xFF1E293B),
         shadowColor: Colors.black,
         useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        textTheme: GoogleFonts.interTextTheme(
+          ThemeData.dark().textTheme,
+        ).apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
+        ),
+        iconTheme: const IconThemeData(
+          color: Colors.white,
+        ),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF0F172A),
           elevation: 0,
