@@ -1604,20 +1604,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               rating: stars,
             );
 
-            await ref
-                .read(submitRatingProvider.notifier)
-                .submitRating(
-              postId: postId,
-              rating: stars,
-            );
-
             await ref.read(feedViewModelProvider.notifier).loadFeed();
+
+            final feedState = ref.read(feedViewModelProvider);
+
+            final updatedPost = feedState.posts.firstWhere(
+                  (p) => p.id == postId,
+            );
 
             if (!mounted) return;
 
             setState(() {
-              post['my_rating'] = stars;
-              post['user_rating'] = stars;
+              post['my_rating'] = updatedPost.userRating;
+              post['user_rating'] = updatedPost.userRating;
+
+              post['average_rating'] = updatedPost.averageRating;
+              post['averageRating'] = updatedPost.averageRating;
+
+              post['total_ratings'] = updatedPost.totalRatings;
+              post['totalRatings'] = updatedPost.totalRatings;
             });
 
 
@@ -1804,7 +1809,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               }
             });
 
-            _showActionSnackBar(context.tr.commentPosted);
+            _showActionSnackBar(
+              parentId != null
+                  ? context.tr.replyPosted
+                  : context.tr.commentPosted,
+            );
 
             final isSelfComment =
                 commentAuthor.toLowerCase() == postAuthor.toLowerCase();

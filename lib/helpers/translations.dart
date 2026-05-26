@@ -935,6 +935,8 @@ class AppTranslations {
     {'code': 'bn', 'name': 'Bengali (Bangladesh)', 'native': 'বাংলা', 'flag': '🇧🇩'},
   ];
 
+  String get replyPosted => 'Reply posted!';
+
   /// Quick access method - use this in any widget
   static AppTranslations of(BuildContext context) => AppTranslations(context);
 }

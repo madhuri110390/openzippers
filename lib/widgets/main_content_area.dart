@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart' as widgets;
 import 'dart:async';
 import 'dart:convert';
+import '../providers/rating_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodels/search_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
@@ -760,7 +762,67 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     });
   }
 
-  void _showRatingDialog(Map<String, dynamic> post) {}
+  void _showRatingDialog(Map<String, dynamic> post) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => RatingDialog(
+        post: post,
+        onSubmit: (stars) async {
+          try {
+            await ref
+                .read(submitRatingProvider.notifier)
+                .submitRating(
+              postId: post['id'],
+              rating: stars,
+            );
+
+            if (!mounted) return;
+
+            setState(() {
+              post['my_rating'] = stars;
+              post['user_rating'] = stars;
+
+              final currentTotal =
+              (post['total_ratings'] ??
+                  post['totalRatings'] ??
+                  0) as int;
+
+              post['total_ratings'] = currentTotal + 1;
+              post['totalRatings'] = currentTotal + 1;
+
+              post['average_rating'] = stars.toDouble();
+              post['averageRating'] = stars.toDouble();
+            });
+
+            ref.invalidate(
+              ratingProvider(post['id']),
+            );
+
+            widget.onRefresh?.call();
+
+            Navigator.of(dialogContext).pop();
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Rating submitted!'),
+              ),
+            );
+          } catch (e) {
+            debugPrint('Rating Error: $e');
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Unable to submit rating'),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
   void _showInfoDialog(Map<String, dynamic> post) {}
   void _showContentDetails(Map<String, dynamic> post) {
     showDialog(
@@ -1107,9 +1169,20 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final theme = Theme.of(context);
     final author = _getAuthor(post);
     final postIdStr = post['id']?.toString() ?? '';
-    final rating = post['my_rating'] ??
-        post['user_rating'] ??
-        0;
+    final avgRating = double.tryParse(
+      (post['average_rating'] ??
+          post['averageRating'] ??
+          0)
+          .toString(),
+    ) ??
+        0.0;
+
+    final totalRatings =
+        post['total_ratings'] ??
+            post['totalRatings'] ??
+            0;
+
+
     final commentCount = post['commentsCount'] ??
         _countTopLevelComments(post['comments'] as List? ?? []);
     final isLiked =
@@ -1448,9 +1521,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             children: [
               _buildActionButton(
                 icon: isLiked ? Icons.favorite :  Icons.favorite_border,
-               color: Theme.of(context).brightness == Brightness.dark
-    ? Colors.white
-        : Colors.black54,
+                color: _kPink,
                 label: '${post['likeCount'] ?? 0}',
                 onTap: () => widget.onPostAction(post, 'Like'),
               ),
@@ -1470,22 +1541,28 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               //   Icons.star_border,
               //   color: Colors.white,
               // ),
-              GestureDetector(
-                onTap: () => _showRatingDialog(post),
-                child: Row(
-                  children: [
-                    Icon(
-                      rating > 0 ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating.toString(),
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
+
+
+    GestureDetector(
+    onTap: () => _showRatingDialog(post),
+    child: Row(
+    children: [
+    const Icon(
+    Icons.star,
+    color: Colors.amber,
+    size: 20,
+    ),
+    const SizedBox(width: 4),
+    Text(
+        avgRating.round().toString(),
+    style: TextStyle(
+    color: Theme.of(context).textTheme.bodyMedium?.color,
+    fontWeight: FontWeight.w600,
+    ),
+    ),
+    ],
+    ),
+    ),
             ],
           ),
         ),
