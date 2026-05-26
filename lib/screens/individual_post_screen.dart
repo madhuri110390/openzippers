@@ -14,6 +14,7 @@ import '../helpers/database_helper.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/rating_provider.dart';
 import '../models/rating_response.dart';
+import '../widgets/rating_dialog.dart';
 import 'profile_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -72,84 +73,61 @@ class _IndividualPostScreenState extends ConsumerState<IndividualPostScreen> {
   bool _isSubscribed = false;
   final DatabaseHelper _dbHelper = DatabaseHelper();
   final Set<String> _likedPostIds = {};
-
   void _showRatingDialog(int postId, String title) {
-    double? newRating;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Rate "$title"'),
-        content: StatefulBuilder(
-          builder: (ctx, setState) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  icon: Icon(
-                    (newRating ?? 0) > index ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 36,
-                  ),
-                  onPressed: () => setState(() => newRating = index + 1.0),
-                );
-              }),
+      builder: (dialogContext) => RatingDialog(
+        post: _post,
+        onSubmit: (stars) async {
+          try {
+            // Update UI immediately
+            if (mounted) {
+              setState(() {
+                _post['my_rating'] = stars;
+                _post['user_rating'] = stars;
+
+                final currentTotal =
+                (_post['totalRatings'] ??
+                    _post['total_ratings'] ??
+                    0) as int;
+
+                _post['totalRatings'] = currentTotal + 1;
+                _post['total_ratings'] = currentTotal + 1;
+
+                _post['averageRating'] = stars.toDouble();
+                _post['average_rating'] = stars.toDouble();
+              });
+            }
+
+            await ref.read(submitRatingProvider.notifier).submitRating(
+              postId: postId,
+              rating: stars,
             );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (newRating != null) {
-                try {
-                  await ref.read(submitRatingProvider.notifier).submitRating(
-                    postId: postId,
-                    rating: newRating!.toInt(),
-                  );
-                  setState(() {
 
-                    _post['averageRating'] =
-                        newRating!.toDouble();
+            ref.invalidate(ratingProvider(postId));
 
-                    _post['my_rating'] =
-                        newRating!.toInt();
+            if (mounted) {
+              Navigator.of(dialogContext).pop();
 
-                  });
-                  await Future.delayed(
-                    const Duration(milliseconds: 800),
-                  );
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Rating submitted!'),
+                ),
+              );
+            }
+          } catch (e, s) {
+            debugPrint('RATING ERROR: $e');
+            debugPrintStack(stackTrace: s);
 
-                  ref.invalidate(
-                    ratingProvider(postId),
-                  );
-
-                  if (mounted) {
-                    setState(() {});
-                  }
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Rating submitted!')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                }
-              } else {
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Rating failed: $e'),
+                ),
+              );
+            }
+          }
+        },
       ),
     );
   }
@@ -588,14 +566,44 @@ class _IndividualPostScreenState extends ConsumerState<IndividualPostScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
+                // RATING - simple, no Consumer/ratingProvider
                 GestureDetector(
-                  onTap: () => _navigateToProfile(_post['author']),
-                  child: CircleAvatar(
-                    radius: 20,
-                    backgroundImage: _getAvatar(_post['author']),
-                    child: _post['author'] == null ? const Icon(Icons.person) : null,
-                  ),
-                ),
+                onTap: () => _showRatingDialog(
+    _post['id'] is int ? _post['id'] : int.tryParse(_post['id'].toString()) ?? 0,
+    _post['title'] ?? 'Post',
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          (_post['my_rating'] ?? 0) > 0
+              ? Icons.star
+              : Icons.star_border,
+          color: Colors.amber,
+          size: 22,
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(
+              ((_post['averageRating'] ??
+                  _post['average_rating'] ??
+                  0) as num)
+                  .toDouble()
+                  .toStringAsFixed(1)
+          ),
+        ),
+        const SizedBox(width: 2),
+        Flexible(
+          child: Text(
+            "(${_post['totalRatings'] ??
+                _post['total_ratings'] ??
+                0})",
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    ),
+    ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: GestureDetector(
@@ -1228,11 +1236,11 @@ class _IndividualPostScreenState extends ConsumerState<IndividualPostScreen> {
 
                 avg.toStringAsFixed(1),
 
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
+                  style: const TextStyle(
+                    color: Colors.amber,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
 
               ),
 
@@ -1243,7 +1251,7 @@ class _IndividualPostScreenState extends ConsumerState<IndividualPostScreen> {
                 "($total)",
 
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Colors.amber,
                   fontSize: 12,
                 ),
 
@@ -1276,7 +1284,7 @@ class _IndividualPostScreenState extends ConsumerState<IndividualPostScreen> {
                   .toString(),
 
               style: const TextStyle(
-                color: Colors.white,
+                color: Colors.amber,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),
@@ -1308,7 +1316,7 @@ class _IndividualPostScreenState extends ConsumerState<IndividualPostScreen> {
                   .toString(),
 
               style: const TextStyle(
-                color: Colors.white,
+                color: Colors.amber,
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
               ),

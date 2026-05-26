@@ -807,16 +807,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                 content: Text('Rating submitted!'),
               ),
             );
-          } catch (e) {
+          }catch (e) {
             debugPrint('Rating Error: $e');
-
-            if (!mounted) return;
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Unable to submit rating'),
-              ),
-            );
           }
         },
       ),
@@ -1585,25 +1577,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     );
   }
 
-  Widget _buildCountChip(int count) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.chat_bubble_rounded,
-            color: Colors.white, size: 13),
-        const SizedBox(width: 5),
-        Text('$count',
-            style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontSize: 12,
-                fontWeight: FontWeight.bold)),
-      ]),
-    );
-  }
+
 
   Widget _buildActionButton({
     required IconData icon,

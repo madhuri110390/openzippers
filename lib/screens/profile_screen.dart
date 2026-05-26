@@ -22,6 +22,7 @@ import '../widgets/media_player_widgets.dart';
 import '../helpers/database_helper.dart';
 import '../models/mock_data.dart';
 import '../helpers/translations.dart';
+import '../widgets/rating_dialog.dart';
 import 'copyright_screen.dart';
 import 'edit_profile_screen.dart';
 import 'like_button.dart';
@@ -59,6 +60,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
   final Function(Map<String, dynamic>)? onNavigateToAlbum;
   final List<Map<String, dynamic>> readPosts;
   final List<Map<String, dynamic>> commentedPosts;
+  final VoidCallback? onRefresh;
   final List<Map<String, dynamic>> watchedPosts;
   final ValueNotifier<List<Map<String, dynamic>>>? cartItemsNotifier;
 
@@ -87,6 +89,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
     this.watchedPosts = const [],
     this.onSettingsTap,
     this.cartItemsNotifier,
+    this.onRefresh,
   });
 
   bool get fromProfile => true;
@@ -103,7 +106,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _showAvatarMenu = false;
   late ProfileViewModel _viewModel;
   List<Map<String, dynamic>> _posts = [];
-
+  static const Color _kPink = Color(0xFFDB2777);
+  final Set<String> _expandedPostIds = {};
   final ScrollController _scrollController = ScrollController();
   final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _albums = [];
@@ -121,7 +125,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
     return baseUser;
   }
-
+  void _toggleComments(String id) {
+    setState(() {
+      if (_expandedPostIds.contains(id)) {
+        _expandedPostIds.remove(id);
+      } else {
+        _expandedPostIds.add(id);
+      }
+    });
+  }
   bool get isMe {
     if (widget.user == null) return true;
     return effectiveUser.username == widget.currentUser.username;
@@ -168,95 +180,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _prefillRatings(widget.posts);
     }
   }
-
-  void _showRatingDialog(BuildContext context, int postId, String title) {
-    double? newRating;
+  void _showRatingDialog(Map<String, dynamic> post) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Rate "$title"'),
-        content: StatefulBuilder(
-          builder: (ctx, setState) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(5, (index) {
-                return IconButton(
-                  icon: Icon(
-                    (newRating ?? 0) > index ? Icons.star : Icons.star_border,
-                    color: Colors.amber,
-                    size: 36,
-                  ),
-                  onPressed: () => setState(() => newRating = index + 1.0),
-                );
-              }),
+      builder: (dialogContext) => RatingDialog(
+        post: post,
+        onSubmit: (stars) async {
+          try {
+            await ref
+                .read(submitRatingProvider.notifier)
+                .submitRating(
+              postId: post['id'],
+              rating: stars,
             );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (newRating != null) {
-                try {
-                  await ref.read(
-                    submitRatingProvider.notifier,
-                  ).submitRating(
-                    postId: postId,
-                    rating: newRating!.toInt(),
-                  );
 
-                  await Future.delayed(
-                    const Duration(milliseconds: 800),
-                  );
+            if (!mounted) return;
 
-                  ref.refresh(
-                    ratingProvider(postId),
-                  );
+            setState(() {
+              post['my_rating'] = stars;
+              post['user_rating'] = stars;
 
-                  await _loadPostsFromApi();
+              final currentTotal =
+              (post['total_ratings'] ??
+                  post['totalRatings'] ??
+                  0) as int;
 
-                  if (mounted) {
-                    setState(() {});
-                  }
-                  final index = _posts.indexWhere((p) => p['id'] == postId);
-                  if (index != -1) {
-                    setState(() {
+              post['total_ratings'] = currentTotal + 1;
+              post['totalRatings'] = currentTotal + 1;
 
-                      _posts[index]['my_rating'] =
-                          newRating!.toInt();
+              post['average_rating'] = stars.toDouble();
+              post['averageRating'] = stars.toDouble();
+            });
 
-                      _posts[index]['user_rating'] =
-                          newRating!.toInt();
+            ref.invalidate(
+              ratingProvider(post['id']),
+            );
 
-                    });
-                    ref.invalidate(
-                      ratingProvider(postId),
-                    );
-                  }
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Rating submitted!')),
-                    );
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                }
-              } else {
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Submit'),
-          ),
-        ],
+            widget.onRefresh?.call();
+
+            Navigator.of(dialogContext).pop();
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Rating submitted!'),
+              ),
+            );
+          }catch (e) {
+            debugPrint('Rating Error: $e');
+          }
+        },
       ),
     );
   }
@@ -369,6 +341,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _loadPostsFromApi() async {
     try {
+      if (!mounted) return;
       final authRepo = ref.read(authRepositoryProvider);
       final username = effectiveUser.username;
       if (username.isEmpty) return;
@@ -1471,6 +1444,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
+                      // Like
                       GestureDetector(
                         onTap: () {
                           final key = "${post['title']}_${post['author']}";
@@ -1499,26 +1473,35 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   ? Icons.favorite
                                   : Icons.favorite_border,
                               color: Colors.pink,
-                              size: 18,
+                              size: 14,
                             ),
-                            const SizedBox(width: 4),
-                            Text(
-                              "${post['likeCount'] ?? 0}",
-                              style: const TextStyle(color: Colors.white, fontSize: 11),
+                            const SizedBox(width: 2),
+                            Flexible(
+                              child: Text(
+                                "${post['likeCount'] ?? 0}",
+                                style: const TextStyle(color: Colors.white, fontSize: 10),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
                       ),
+                      // Comments
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            "${_getCommentCount(post)}",
-                            style: const TextStyle(color: Colors.white, fontSize: 11),
+                          const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 14),
+                          const SizedBox(width: 2),
+                          Flexible(
+                            child: Text(
+                              "${_getCommentCount(post)}",
+                              style: const TextStyle(color: Colors.white, fontSize: 10),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
+                      // Rating
                       Builder(
                         builder: (context) {
                           final postId = post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()) ?? 0;
@@ -1528,9 +1511,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               final ratingData = ratingResponse.data;
                               final userRating = ratingData.userRating;
                               final avg = ratingData.averageRating;
-                              final total = ratingData.totalRatings;
                               return GestureDetector(
-                                onTap: () => _showRatingDialog(context, postId, post['title'] ?? 'Post'),
+                                onTap: () => _showRatingDialog(post),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -1539,21 +1521,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                           ? Icons.star
                                           : Icons.star_border,
                                       color: Colors.amber,
-                                      size: 18,
+                                      size: 14,
                                     ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                    avg > 0
-                                    ? avg.toStringAsFixed(1)
-                                  : "0.0",
-                                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                                    const SizedBox(width: 2),
+                                    Flexible(
+                                      child: Text(
+                                        avg.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                          color: Colors.amber,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ],
                                 ),
                               );
                             },
-                            loading: () => const SizedBox(width: 30, height: 18),
-                            error: (err, stack) => const Icon(Icons.star_border, color: Colors.amber, size: 18),
+                            loading: () => const SizedBox(width: 20, height: 14),
+                            error: (_, __) => const Icon(Icons.star_border, color: Colors.amber, size: 14),
                           );
                         },
                       ),
@@ -1705,16 +1692,86 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 builder: (context, cartItems, child) {
                   final cartItem = cartItems.firstWhere((item) => item['title'] == post['title'] && item['author'] == post['author'], orElse: () => <String, dynamic>{});
                   final quantity = cartItem.isNotEmpty ? (cartItem['quantity'] as int? ?? 1) : 0;
+                  final bool isLiked = post['isLiked'] == true;
+
+                  final String postIdStr =
+                  (post['id'] ?? '').toString();
+
+                  final int commentCount =
+                  _getCommentCount(post);
+
+                  final double avgRating =
+                  ((post['averageRating'] ??
+                      post['average_rating'] ??
+                      post['avg_rating'] ??
+                      0) as num)
+                      .toDouble();
                   if (quantity > 0) {
                     return Row(children: [
                       Stack(alignment: Alignment.center, children: [
                         const Icon(Icons.shopping_cart, color: Color(0xFFDB2777), size: 22),
-                        Positioned(right: -4, top: -4, child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(color: Color(0xFFDB2777), shape: BoxShape.circle),
-                          constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                          child: Text(quantity > 99 ? '99+' : '$quantity', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                        )),
+                        // Positioned(right: -4, top: -4, child: Container(
+                        //   padding: const EdgeInsets.all(2),
+                        //   decoration: const BoxDecoration(color: Color(0xFFDB2777), shape: BoxShape.circle),
+                        //   constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
+                        //   child: Text(quantity > 99 ? '99+' : '$quantity', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                        // )),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(
+                            16,
+                            10,
+                            16,
+                            10,
+                          ),
+                          child:Row(
+                            children: [
+                              _buildActionButton(
+                                icon: isLiked ? Icons.favorite :  Icons.favorite_border,
+                                color: _kPink,
+                                label: '${post['likeCount'] ?? 0}',
+                                onTap: () => widget.onPostAction(post, 'Like'),
+                              ),
+                              // Comment
+                              _buildActionButton(
+                                icon: Icons.chat_bubble_outline_rounded,
+                                color: _expandedPostIds.contains(postIdStr)
+                                    ? _kPink
+                                    : Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black87,
+                                label: '$commentCount',
+                                onTap: () => _toggleComments(postIdStr),
+                              ),
+
+                              // const Icon(
+                              //   Icons.star_border,
+                              //   color: Colors.white,
+                              // ),
+
+
+                              GestureDetector(
+                                onTap: () => _showRatingDialog(post),
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      color: Colors.amber,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      avgRating.round().toString(),
+                                      style: TextStyle(
+                                        color: Theme.of(context).textTheme.bodyMedium?.color,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ]),
                       const SizedBox(width: 8),
                     ]);
@@ -1791,11 +1848,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                               onTap: () async {
 
-                                _showRatingDialog(
-                                  context,
-                                  postId,
-                                  post['title'] ?? 'Post',
-                                );
+                                _showRatingDialog(post);
 
                               },
 
@@ -1944,11 +1997,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                           return GestureDetector(
 
-                            onTap: () => _showRatingDialog(
-                              context,
-                              postId,
-                              post['title'] ?? 'Post',
-                            ),
+                            onTap: () => _showRatingDialog(post),
 
                             child: Row(
 
@@ -2046,7 +2095,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
-
+  Widget _buildActionButton({
+    required IconData icon,
+    required Color color,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, color: color, size: 21),
+          if (label.isNotEmpty) ...[
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ]
+        ]),
+      ),
+    );
+  }
   Widget _buildPostMedia(Map<String, dynamic> post) {
     final theme = Theme.of(context);
     final String type = post['type'];
