@@ -5,6 +5,7 @@ import '../models/block_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
 import '../models/delete_post_response.dart';
+import '../models/email_verfication_response.dart';
 import '../models/follow_response.dart';
 import '../models/like_response.dart';
 import '../models/rating_response.dart';
@@ -14,6 +15,7 @@ import '../models/feed_response.dart';
 import '../models/search_response.dart';
 import '../models/subscription_status_response.dart';
 import '../models/support_contact_response.dart';
+import '../models/verification_response.dart';
 import '../models/wallet_response.dart';
 part 'api_client.g.dart';
 
@@ -256,5 +258,27 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
     @Query("artist_id")
     required int artistId,
   });
+// creator verification
+  @POST("zippfans/creator/verification-documents")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  @MultiPart()
+  Future<VerificationResponse> uploadVerificationDocuments({
+    @Part(name: 'government_id_front')
+    required File governmentIdFront,
 
+    @Part(name: 'government_id_back')
+    required File governmentIdBack,
+
+    @Part(name: 'passport_photo')
+    required File passportPhoto,
+  });
+
+  // email verification send
+  @POST("zippfans/verification/email/send")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<EmailVerificationResponse> sendVerificationEmail();
 }
