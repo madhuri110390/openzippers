@@ -12,10 +12,12 @@ import '../models/register_response.dart';
 import '../models/location_models.dart';
 import '../models/feed_response.dart';
 import '../models/search_response.dart';
+import '../models/subscription_status_response.dart';
 import '../models/support_contact_response.dart';
+import '../models/wallet_response.dart';
 part 'api_client.g.dart';
 
-@RestApi(baseUrl: "https://openzippers.com/api/v1/")
+@RestApi(baseUrl: "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1")
 abstract class ApiClient {
   factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;
 
@@ -242,4 +244,12 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
   Future<FollowResponse> toggleFollow(
       @Body() Map<String, dynamic> body,
       );
+  @GET("/user/wallet")
+  Future<WalletResponse> getWalletBalance();
+
+  @GET("zippfans/subscriptions/status")
+  Future<SubscriptionStatusResponse> getSubscriptionStatus({
+    @Query("artist_id") required int artistId,
+  });
+
 }

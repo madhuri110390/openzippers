@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/mock_data.dart';
 import '../helpers/database_helper.dart';
 import '../helpers/translations.dart';
+import '../providers/wallet_provider.dart';
 
-class WalletScreen extends StatefulWidget {
+class WalletScreen extends ConsumerStatefulWidget {
   final MockUser currentUser;
 
   const WalletScreen({
@@ -13,11 +15,13 @@ class WalletScreen extends StatefulWidget {
   });
 
   @override
-  State<WalletScreen> createState() => _WalletScreenState();
+  ConsumerState<WalletScreen> createState() =>
+      _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderStateMixin {
-  final DatabaseHelper _dbHelper = DatabaseHelper();
+class _WalletScreenState
+    extends ConsumerState<WalletScreen> with SingleTickerProviderStateMixin {
+
   double? _walletBalance;
   final TextEditingController _amountController = TextEditingController();
   final FocusNode _amountFocusNode = FocusNode();
@@ -30,7 +34,7 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadWalletData();
+
     _loadSavedAmount();
     _amountController.addListener(_saveAmount);
   }
@@ -57,24 +61,7 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
     await prefs.setString('wallet_amount_${widget.currentUser.username}', _amountController.text);
   }
 
-  Future<void> _loadWalletData() async {
-    if (!mounted) return;
-    
-    setState(() {
-      _isLoadingBalance = true;
-    });
-    
-    final balance = await _dbHelper.getWalletBalance(widget.currentUser.username);
-    final transactions = await _dbHelper.getWalletTransactions(widget.currentUser.username);
-    
-    if (mounted) {
-      setState(() {
-        _walletBalance = balance;
-        _transactions = transactions;
-        _isLoadingBalance = false;
-      });
-    }
-  }
+
 
   Future<void> _deposit(double amount) async {
     if (amount <= 0) {
@@ -92,19 +79,13 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
       _isLoadingBalance = false;
     });
     
-    await _dbHelper.updateWalletBalance(widget.currentUser.username, amount);
-    await _dbHelper.addWalletTransaction(
-      widget.currentUser.username,
-      'deposit',
-      amount,
-      'Wallet deposit',
-    );
+
     
     _amountController.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('wallet_amount_${widget.currentUser.username}');
     
-    await _loadWalletData();
+
     
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,19 +150,31 @@ class _WalletScreenState extends State<WalletScreen> with SingleTickerProviderSt
                   children: [
                     Text(context.tr.currentBalance, style: TextStyle(fontSize: 14, color: theme.textTheme.bodyMedium?.color)),
                     const Spacer(),
-                    _isLoadingBalance
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFDB2777)),
-                          ),
-                        )
-                      : Text(
-                          "${context.tr.currencySymbol}${(_walletBalance ?? 0.0).toStringAsFixed(2)}",
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFFDB2777)),
+                    ref.watch(walletProvider).when(
+                      loading: () => const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
                         ),
+                      ),
+                      error: (_, __) => const Text(
+                        "\$0.00",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFDB2777),
+                        ),
+                      ),
+                      data: (response) => Text(
+                        "\$${response.data.balance.toStringAsFixed(2)}",
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFDB2777),
+                        ),
+                      ),
+                    )
                   ],
                 ),
                 const SizedBox(height: 20),

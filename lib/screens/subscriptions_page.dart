@@ -18,7 +18,9 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
   final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _subscriptions = [];
   List<Map<String, dynamic>> _subscribers = [];
-
+  String apiAmount = '\$12.00';
+  String apiStatus = 'Active';
+  String apiExpiresAt = 'N/A';
   @override
   void initState() {
     super.initState();
@@ -43,6 +45,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
     });
 
     try {
+
       final relationships = await _dbHelper.getRelationships(widget.currentUser.username);
 
       final List<Map<String, dynamic>> subs = [];
@@ -52,12 +55,12 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
         if (type == 'subscribed') {
           subs.add({
             'type': 'Artist',
-            'user': '@$username',
-            'amount': '\$12.00',
-            'status': 'Active',
+            'user': widget.currentUser.username,
+            'amount': apiAmount,
+            'status': apiStatus,
             'provider': 'Stripe',
-            'nextBilling': 'Auto-renew',
-            'created': 'Recent'
+            'nextBilling': apiExpiresAt,
+            'created': 'Recent',
           });
         } else if (type == 'subscriber') {
           fans.add({
@@ -471,16 +474,40 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+
+
+                          const SizedBox(height: 8),
                           _buildInfoRow(context.tr.subscriptionType, sub['type'] == 'Artist' ? context.tr.artist : sub['type']?.toString() ?? '', theme),
+                          const SizedBox(height: 12),
+                          _buildInfoRow(
+                            context.tr.user,
+                            sub['user']?.toString() ?? '',
+                            theme,
+                          ),
                           const SizedBox(height: 8),
                           _buildInfoRow(context.tr.user, sub['user']?.toString() ?? '', theme),
                           const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.amount, sub['amount']?.toString() ?? '', theme, isAmount: true),
+                          _buildInfoRow(
+                            context.tr.amount,
+                            sub['amount']?.toString() ?? '',
+                            theme,
+                            isAmount: true,
+                          ),
+
                           const SizedBox(height: 8),
                           _buildInfoRow(context.tr.provider, sub['provider'] == 'Stripe' ? context.tr.gatewayStripe : sub['provider']?.toString() ?? '', theme),
                           const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.nextBilling, sub['nextBilling']?.toString() ?? '', theme),
+                          _buildInfoRow(
+                            "Status",
+                            sub['status']?.toString().toUpperCase() ?? '',
+                            theme,
+                          ),
+                          _buildInfoRow(
+                            context.tr.nextBilling,
+                            sub['nextBilling']?.toString().split('T').first ?? '',
+                            theme,
+                          ),
+
                           const SizedBox(height: 8),
                           _buildInfoRow(context.tr.created, sub['created']?.toString() ?? '', theme),
                         ],
