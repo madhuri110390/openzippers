@@ -17,7 +17,7 @@ import '../models/support_contact_response.dart';
 import '../models/wallet_response.dart';
 part 'api_client.g.dart';
 
-@RestApi(baseUrl: "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1")
+@RestApi(baseUrl: "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/")
 abstract class ApiClient {
   factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;
 
@@ -125,7 +125,7 @@ abstract class ApiClient {
   });
 
 //profile
-  @GET("/users/{id}")
+  @GET("users/{id}")
   @Headers(<String, dynamic>{"Accept": "application/json"})
   Future<RegisterResponse> getUserById(@Path("id") int id,
       );
@@ -247,9 +247,14 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
   @GET("/user/wallet")
   Future<WalletResponse> getWalletBalance();
 
-  @GET("zippfans/subscriptions/status")
-  Future<SubscriptionStatusResponse> getSubscriptionStatus({
-    @Query("artist_id") required int artistId,
+  @GET("/zippfans/subscriptions/status")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<SubscriptionStatusResponse>
+  getSubscriptionStatus({
+    @Query("artist_id")
+    required int artistId,
   });
 
 }

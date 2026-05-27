@@ -1,7 +1,11 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/translations.dart';
 import '../models/mock_data.dart';
 import '../helpers/database_helper.dart';
+import '../network/api_client.dart';
+import '../repositories/subscription_repository.dart';
 
 class SubscriptionsPage extends StatefulWidget {
   final MockUser currentUser;
@@ -14,25 +18,64 @@ class SubscriptionsPage extends StatefulWidget {
 
 class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  late final ApiClient _apiClient;
+  late final SubscriptionRepository
+  _subscriptionRepository;
   bool _isLoading = false;
   final DatabaseHelper _dbHelper = DatabaseHelper();
   List<Map<String, dynamic>> _subscriptions = [];
   List<Map<String, dynamic>> _subscribers = [];
-  String apiAmount = '\$12.00';
-  String apiStatus = 'Active';
-  String apiExpiresAt = 'N/A';
+  String apiAmount = '';
+  String apiStatus = '';
+  String apiExpiresAt = '';
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+
+    _tabController =
+        TabController(length: 2, vsync: this);
 
     if (widget.highlightUser != null) {
       _tabController.index = 1;
     }
 
-    _loadData();
+    _initialize();
   }
+  Future<void> _initialize() async {
 
+    final prefs =
+    await SharedPreferences.getInstance();
+
+    final token =
+    prefs.getString("auth_token");
+
+    debugPrint("TOKEN = $token");
+
+    final dio = Dio();
+
+    dio.options.headers = {
+      "Accept": "application/json",
+      "Authorization": "Bearer $token",
+    };
+
+    dio.interceptors.add(
+      LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        requestHeader: true,
+        responseHeader: true,
+      ),
+    );
+
+    _apiClient = ApiClient(dio);
+
+    _subscriptionRepository =
+        SubscriptionRepository(
+          _apiClient,
+        );
+
+    await _loadData();
+  }
   @override
   void dispose() {
     _tabController.dispose();
@@ -40,13 +83,75 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
   }
 
   Future<void> _loadData() async {
+
+    debugPrint("LOAD DATA STARTED");
+
     setState(() {
       _isLoading = true;
     });
 
     try {
 
-      final relationships = await _dbHelper.getRelationships(widget.currentUser.username);
+      debugPrint(
+        "USERNAME = ${widget.currentUser.username}",
+      );
+
+      final userResponse =
+      await _apiClient.getUserByUsername(
+        username:
+        widget.currentUser.username,
+      );
+
+      debugPrint(
+        "USER API SUCCESS",
+      );
+
+      final int artistId =
+          userResponse.data?.user.id ?? 0;
+
+      debugPrint(
+        "ARTIST ID = $artistId",
+      );
+
+      final subscriptionResponse =
+      await _subscriptionRepository
+          .getSubscriptionStatus(
+        artistId,
+      );
+
+      debugPrint(
+        "SUBSCRIPTION API SUCCESS",
+      );
+
+      apiAmount =
+          subscriptionResponse
+              .data
+              .subscription
+              ?.amount ??
+              '';
+
+      apiStatus =
+          subscriptionResponse
+              .data
+              .subscription
+              ?.status ??
+              '';
+
+      apiExpiresAt =
+          subscriptionResponse
+              .data
+              .subscription
+              ?.expiresAt ??
+              '';
+
+      debugPrint(
+        "STATUS = $apiStatus",
+      );
+
+      final relationships =
+      await _dbHelper.getRelationships(
+        widget.currentUser.username,
+      );
 
       final List<Map<String, dynamic>> subs = [];
       final List<Map<String, dynamic>> fans = [];
@@ -55,9 +160,13 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
         if (type == 'subscribed') {
           subs.add({
             'type': 'Artist',
-            'user': widget.currentUser.username,
-            'amount': apiAmount,
-            'status': apiStatus,
+            'user': '@$username',
+            'amount': apiAmount.isNotEmpty
+                ? apiAmount
+                : '\$0.00',
+            'status': apiStatus.isNotEmpty
+                ? apiStatus
+                : 'Inactive',
             'provider': 'Stripe',
             'nextBilling': apiExpiresAt,
             'created': 'Recent',
@@ -66,11 +175,15 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
           fans.add({
             'type': 'Fan',
             'user': '@$username',
-            'amount': '\$12.00',
-            'status': 'Active',
+            'amount': apiAmount.isNotEmpty
+                ? apiAmount
+                : '\$0.00',
+            'status': apiStatus.isNotEmpty
+                ? apiStatus
+                : 'Inactive',
             'provider': 'Stripe',
-            'nextBilling': 'N/A',
-            'created': 'Recent'
+            'nextBilling': apiExpiresAt,
+            'created': 'Recent',
           });
         }
       });
@@ -82,14 +195,15 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
           _isLoading = false;
         });
       }
+
     } catch (e) {
-      debugPrint("Error loading subscription data: $e");
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+
+      debugPrint(
+        "API ERROR = $e",
+      );
     }
+
+
   }
 
   Future<void> _refreshData() async {

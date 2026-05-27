@@ -12,7 +12,7 @@ part of 'api_client.dart';
 
 class _ApiClient implements ApiClient {
   _ApiClient(this._dio, {this.baseUrl, this.errorLogger}) {
-    baseUrl ??= 'https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1';
+    baseUrl ??= 'https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/';
   }
 
   final Dio _dio;
@@ -440,7 +440,7 @@ class _ApiClient implements ApiClient {
       Options(method: 'GET', headers: _headers, extra: _extra)
           .compose(
             _dio.options,
-            '/users/${id}',
+            'users/${id}',
             queryParameters: queryParameters,
             data: _data,
           )
@@ -916,7 +916,7 @@ class _ApiClient implements ApiClient {
       Options(method: 'GET', headers: _headers, extra: _extra)
           .compose(
             _dio.options,
-            'zippfans/subscriptions/status',
+            '/zippfans/subscriptions/status',
             queryParameters: queryParameters,
             data: _data,
           )
