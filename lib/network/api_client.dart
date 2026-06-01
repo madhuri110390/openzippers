@@ -8,6 +8,7 @@ import '../models/delete_post_response.dart';
 import '../models/email_verfication_response.dart';
 import '../models/follow_response.dart';
 import '../models/like_response.dart';
+import '../models/post_checkout_response.dart';
 import '../models/rating_response.dart';
 import '../models/register_response.dart';
 import '../models/location_models.dart';
@@ -281,4 +282,13 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
     "Accept": "application/json",
   })
   Future<EmailVerificationResponse> sendVerificationEmail();
+
+  // Paid Post Checkout
+  @POST("zippfans/payments/post/checkout")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<PostCheckoutResponse> createPostCheckout(
+      @Body() Map<String, dynamic> body,
+      );
 }

@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart' as widgets;
 import 'dart:async';
 import 'dart:convert';
+import '../providers/payment_provider.dart';
 import '../providers/rating_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../viewmodels/search_viewmodel.dart';
@@ -1740,39 +1741,139 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     );
   }
 
-  Widget _buildLockedOverlay(BuildContext context, Map<String, dynamic> post) {
+  Widget _buildLockedOverlay(
+      BuildContext context,
+      Map<String, dynamic> post,
+      ) {
+    final paymentState = ref.watch(paymentViewModelProvider);
+    final theme = Theme.of(context);
+
     return Container(
       height: 280,
       width: double.infinity,
-      decoration: const BoxDecoration(color: Colors.white),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.1)),
-            child: const Icon(Icons.lock_outline,
-                size: 30, color: Colors.white),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Lock Icon
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _kPink.withOpacity(.12),
+                ),
+                child: const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 40,
+                  color: _kPink,
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Text(
+                "Premium Content",
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                "Subscribe to unlock this content",
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.textTheme.bodyMedium?.color?.withOpacity(.7),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              // Price Badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 10,
+                ),
+                decoration: BoxDecoration(
+                  color: _kPink.withOpacity(.12),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: _kPink,
+                    width: 1.2,
+                  ),
+                ),
+                child: Text(
+                  "₹${post["price"] ?? "0"}",
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: _kPink,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // Subscribe Button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton.icon(
+                  onPressed: paymentState.isLoading
+                      ? null
+                      : () async {
+                    await ref
+                        .read(paymentViewModelProvider.notifier)
+                        .buyPost(
+                      postId: post["id"],
+                    );
+                  },
+                  icon: paymentState.isLoading
+                      ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                      : const Icon(
+                    Icons.workspace_premium_rounded,
+                    color: Colors.white,
+                  ),
+                  label: Text(
+                    paymentState.isLoading
+                        ? "Processing..."
+                        : "Add to Cart",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kPink,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor:
+                    _kPink.withOpacity(0.6),
+                    disabledForegroundColor: Colors.white70,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () {
-              final author = _getAuthor(post);
-              widget.onUserAction?.call(author, 'Subscribe');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _kPink,
-              foregroundColor: Colors.white,
-              padding:
-              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20)),
-            ),
-            child: const Text('Subscribe to Unlock',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ]),
+        ),
       ),
     );
   }
