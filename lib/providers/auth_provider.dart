@@ -16,7 +16,7 @@ final dioProvider = Provider<Dio>((ref) {
     ),
   );
 
-  // ✅ Fix SSL certificate verification for ngrok
+
   (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
     final client = HttpClient();
     client.badCertificateCallback = (cert, host, port) => true;

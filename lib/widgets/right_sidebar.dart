@@ -134,7 +134,7 @@ class _SuggestionCard extends StatelessWidget {
                            SizedBox(width: 4),
                            Text("2", style: TextStyle(color: Colors.white70, fontSize: 10)),
                            SizedBox(width: 8),
-                           Icon(Icons.videocam, size: 12, color: Colors.white70),
+                           // Icon(Icons.videocam, size: 12, color: Colors.white70),
                            SizedBox(width: 4),
                            Text("3", style: TextStyle(color: Colors.white70, fontSize: 10)),
                          ],

@@ -14,7 +14,7 @@ StateNotifierProvider<
     final dio = Dio();
 
     dio.options.baseUrl =
-    "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/";
+    "https://openzipper.com/api/v1/";
 
     dio.options.headers = {
       "Accept": "application/json",

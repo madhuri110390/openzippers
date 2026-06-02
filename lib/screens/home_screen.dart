@@ -75,7 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   ValueNotifier<int>(0);
   final GlobalKey<MainContentAreaState> _mainContentKey =
   GlobalKey<MainContentAreaState>();
-  final GlobalKey<ReelsScreenState> _reelsKey = GlobalKey<ReelsScreenState>();
+ // final GlobalKey<ReelsScreenState> _reelsKey = GlobalKey<ReelsScreenState>();
 
   final Map<String, dynamic> _defaultPost = {
     'type': 'Image',
@@ -2366,18 +2366,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           int reelPollCount = 0;
           void pollForReels() {
             if (!mounted || reelPollCount >= 50) return;
-            if (_reelsKey.currentState != null) {
-              _reelsKey.currentState?.scrollToReelComment(
-                parsedPostId!,
-                commentAuthor: notification['commentAuthor'] as String?,
-                commentText: notification['commentText'] as String?,
-                commentId: notification['commentId'],
-              );
-            } else {
-              reelPollCount++;
-              Future.delayed(
-                  const Duration(milliseconds: 100), pollForReels);
-            }
+            // if (_reelsKey.currentState != null) {
+            //   _reelsKey.currentState?.scrollToReelComment(
+            //     parsedPostId!,
+            //     commentAuthor: notification['commentAuthor'] as String?,
+            //     commentText: notification['commentText'] as String?,
+            //     commentId: notification['commentId'],
+            //   );
+            // } else {
+            //   reelPollCount++;
+            //   Future.delayed(
+            //       const Duration(milliseconds: 100), pollForReels);
+            // }
           }
 
           pollForReels();
@@ -3159,23 +3159,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             _loadData();
           },
         ),
-        ReelsScreen(
-          key: _reelsKey,
-          posts: filteredPosts,
-          currentUser: _getCurrentUser(),
-          users: nonBlockedUsers,
+        ConnectionsScreen(
+          users: _allUsers,
+          username: _getCurrentUser().username,
+          posts: _allPosts,
           onPostAction: _handlePostAction,
+          onUserAction: _handleUserAction,
+          highlightUser: _connectionsHighlightUser,
           onUserTap: (user) {
             setState(() {
               _selectedHomeUser = user;
-              _currentIndex = 0;
+              _currentIndex = 1;
               if (_pageController.hasClients) _pageController.jumpToPage(0);
             });
           },
-          readPosts: _readPosts,
-          watchedPosts: _watchedPosts,
-          bookmarkedPosts: _bookmarkedPosts,
-          isActive: _currentIndex == 1,
         ),
         ConnectionsScreen(
           users: _allUsers,
@@ -3187,7 +3184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           onUserTap: (user) {
             setState(() {
               _selectedHomeUser = user;
-              _currentIndex = 0;
+              _currentIndex = 2;
               if (_pageController.hasClients) _pageController.jumpToPage(0);
             });
           },
@@ -3225,7 +3222,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           onUserTap: (user) {
             setState(() {
               _selectedHomeUser = user;
-              _currentIndex = 0;
+              _currentIndex = 3;
               if (_pageController.hasClients) _pageController.jumpToPage(0);
             });
           },
@@ -3430,9 +3427,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           }
 
           int targetIndex = index;
-          if (index == 2) targetIndex = 5;
-          if (index == 3) targetIndex = 2;
-          if (index == 4) targetIndex = 3;
+          // if (index == 2) targetIndex = 5;
+          // if (index == 3) targetIndex = 2;
+          // if (index == 4) targetIndex = 3;
 
           setState(() => _currentIndex = targetIndex);
 
@@ -3464,14 +3461,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             label: context.tr.home,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.video_library_outlined),
-            activeIcon: const Icon(Icons.video_library),
-            label: context.tr.reels,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.videocam_outlined),
-            activeIcon: const Icon(Icons.videocam),
-            label: context.tr.live,
+            icon: const Icon(Icons.people_outline),
+            activeIcon: const Icon(Icons.people),
+            label: context.tr.connections,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.people_outline),
@@ -3489,11 +3481,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   int _getBottomNavIndex(int currentIndex) {
-    if (currentIndex == 0) return 0;
-    if (currentIndex == 1) return 1;
-    if (currentIndex == 5) return 2;
-    if (currentIndex == 2) return 3;
-    if (currentIndex == 3) return 4;
-    return 0;
+    // if (currentIndex == 0) return 0;
+    // if (currentIndex == 1) return 1;
+    // if (currentIndex == 5) return 2;
+    // if (currentIndex == 2) return 3;
+    // if (currentIndex == 3) return 4;
+    // return 0;
+    return currentIndex;
   }
 }

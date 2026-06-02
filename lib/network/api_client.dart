@@ -20,7 +20,7 @@ import '../models/verification_response.dart';
 import '../models/wallet_response.dart';
 part 'api_client.g.dart';
 
-@RestApi(baseUrl: "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/")
+@RestApi(baseUrl: "https://openzippers.com/api/v1/")
 abstract class ApiClient {
   factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;
 

@@ -9,7 +9,7 @@ final dioProvider = Provider<Dio>((ref) {
   final dio = Dio();
 
   dio.options.baseUrl =
-  "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/";
+  "https://openzippers.com/api/v1/";
 
   dio.interceptors.add(
     InterceptorsWrapper(

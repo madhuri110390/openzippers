@@ -1128,19 +1128,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       child: Row(children: [
-        Expanded(child: ElevatedButton.icon(
-          onPressed: () { Navigator.of(context).push(MaterialPageRoute(builder: (context) => CopyrightScreen(artistName: widget.currentUser.name, userPosts: widget.posts))); },
-          style: ElevatedButton.styleFrom(backgroundColor: theme.cardColor, foregroundColor: theme.textTheme.bodyLarge?.color, elevation: 0, side: BorderSide(color: theme.dividerColor), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          icon: const Icon(Icons.verified_user_outlined, size: 20, color: Color(0xFFDB2777)),
-          label: Text(context.tr.copyright),
-        )),
-        const SizedBox(width: 15),
-        Expanded(child: ElevatedButton.icon(
-          onPressed: () { Navigator.of(context).push(MaterialPageRoute(builder: (context) => PublishingScreen(artistName: widget.currentUser.name, userPosts: widget.posts))); },
-          style: ElevatedButton.styleFrom(backgroundColor: theme.cardColor, foregroundColor: theme.textTheme.bodyLarge?.color, elevation: 0, side: BorderSide(color: theme.dividerColor), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-          icon: const Icon(Icons.menu_book, size: 20, color: Color(0xFFDB2777)),
-          label: Text(context.tr.publishing),
-        )),
+        // Expanded(child: ElevatedButton.icon(
+        //   onPressed: () { Navigator.of(context).push(MaterialPageRoute(builder: (context) => CopyrightScreen(artistName: widget.currentUser.name, userPosts: widget.posts))); },
+        //   style: ElevatedButton.styleFrom(backgroundColor: theme.cardColor, foregroundColor: theme.textTheme.bodyLarge?.color, elevation: 0, side: BorderSide(color: theme.dividerColor), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        //   icon: const Icon(Icons.verified_user_outlined, size: 20, color: Color(0xFFDB2777)),
+        //   label: Text(context.tr.copyright),
+        // )),
+        // const SizedBox(width: 15),
+        // Expanded(child: ElevatedButton.icon(
+        //   onPressed: () { Navigator.of(context).push(MaterialPageRoute(builder: (context) => PublishingScreen(artistName: widget.currentUser.name, userPosts: widget.posts))); },
+        //   style: ElevatedButton.styleFrom(backgroundColor: theme.cardColor, foregroundColor: theme.textTheme.bodyLarge?.color, elevation: 0, side: BorderSide(color: theme.dividerColor), padding: const EdgeInsets.symmetric(vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        //   icon: const Icon(Icons.menu_book, size: 20, color: Color(0xFFDB2777)),
+        //   label: Text(context.tr.publishing),
+        // )),
       ]),
     );
   }
@@ -1554,23 +1554,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: () {
                     final type = post['type'];
                     if (type == 'Video' || type == 'Reel' || type == 'Reels' || type == 'Image') {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ReelsScreen(
-                            posts: _filteredPosts,
-                            currentUser: widget.currentUser,
-                            users: widget.users,
-                            onUserTap: widget.onUserTap,
-                            onPostAction: widget.onPostAction,
-                            startPostId: post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()),
-                            readPosts: widget.readPosts,
-                            watchedPosts: widget.watchedPosts,
-                            showImages: true,
-                            enableComments: false,
-                          ),
-                        ),
-                      );
+                      // Navigator.push(
+                      //   context,
+                      //   // MaterialPageRoute(
+                      //   //   builder: (_) => ReelsScreen(
+                      //   //     posts: _filteredPosts,
+                      //   //     currentUser: widget.currentUser,
+                      //   //     users: widget.users,
+                      //   //     onUserTap: widget.onUserTap,
+                      //   //     onPostAction: widget.onPostAction,
+                      //   //     startPostId: post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()),
+                      //   //     readPosts: widget.readPosts,
+                      //   //     watchedPosts: widget.watchedPosts,
+                      //   //     showImages: true,
+                      //   //     enableComments: false,
+                      //   //   ),
+                      //   // ),
+                      // );
                     } else {
                       _showPostDetails(context, post);
                     }
@@ -2141,7 +2141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return SizedBox(height: 450, width: double.infinity, child: VideoPlayerWidget(
         videoPath: path, coverPath: post['coverPath'], autoPlay: true, showPlayButton: false, showEnlargeButton: true,
         onPlayStateChanged: (isPlaying) { if (mounted) setState(() => _isVideoPlaying = isPlaying); },
-        onEnlargeTap: () { Navigator.push(context, MaterialPageRoute(builder: (_) => ReelsScreen(posts: _filteredPosts, currentUser: widget.currentUser, users: widget.users, onUserTap: widget.onUserTap, onPostAction: widget.onPostAction, startPostId: post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()), readPosts: widget.readPosts, watchedPosts: widget.watchedPosts, showImages: true))); },
+       // onEnlargeTap: () { Navigator.push(context, MaterialPageRoute(builder: (_) => ReelsScreen(posts: _filteredPosts, currentUser: widget.currentUser, users: widget.users, onUserTap: widget.onUserTap, onPostAction: widget.onPostAction, startPostId: post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()), readPosts: widget.readPosts, watchedPosts: widget.watchedPosts, showImages: true))); },
       ));
     } else if (type == 'Song') {
       return AudioPlayerWidget(audioPath: path, coverPath: post['imageUrl'] ?? post['coverPath']);

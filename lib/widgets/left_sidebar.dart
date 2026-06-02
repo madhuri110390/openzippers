@@ -80,26 +80,29 @@ class LeftSidebar extends StatelessWidget {
                   const Divider(height: 20),
                 ],
                 _MenuItem(
-                  icon: Icons.home, 
-                  label: tr.home, 
+                  icon: Icons.home,
+                  label: tr.home,
                   isSelected: currentIndex == 0,
                   onTap: () => onIndexChanged(0),
                 ),
-                 _MenuItem(
-                  icon: Icons.video_library_outlined, 
-                  label: tr.reels,
+
+                _MenuItem(
+                  icon: Icons.photo_library_outlined,
+                  label: tr.albums,
                   isSelected: currentIndex == 1,
                   onTap: () => onIndexChanged(1),
                 ),
+
                 _MenuItem(
-                  icon: Icons.people_outline, 
-                  label: tr.connections, 
+                  icon: Icons.people_outline,
+                  label: tr.connections,
                   isSelected: currentIndex == 2,
                   onTap: () => onIndexChanged(2),
                 ),
-                 _MenuItem(
-                  icon: Icons.person_outline, 
-                  label: tr.profile, 
+
+                _MenuItem(
+                  icon: Icons.person_outline,
+                  label: tr.profile,
                   isSelected: currentIndex == 3,
                   onTap: () => onIndexChanged(3),
                 ),
@@ -111,12 +114,12 @@ class LeftSidebar extends StatelessWidget {
                 ),
                 const Divider(height: 30),
                 _MenuItem(icon: Icons.search, label: tr.search),
-                _MenuItem(
-                  icon: Icons.videocam_outlined, 
-                  label: tr.liveStreams,
-                  isSelected: currentIndex == 5,
-                  onTap: () => onIndexChanged(5),
-                ),
+                // _MenuItem(
+                //   icon: Icons.videocam_outlined,
+                //   label: tr.liveStreams,
+                //   isSelected: currentIndex == 5,
+                //   onTap: () => onIndexChanged(5),
+                // ),
                  _MenuItem(
                   icon: Icons.bookmark_border, 
                   label: tr.bookmark,
