@@ -1057,23 +1057,24 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             username: user.username,
             avatar: user.avatar,
             postsCount: user.postsCount,
-            onTap: () {
-              // Convert API result → MockUser and navigate to profile
-              final mockUser = MockUser(
-                username: user.username,
-                name: user.name,
-                avatar: user.avatar,
-                coverImage: '',
-                isVerified: false,
-                bio: '',
-                type: 'public',
-                country: '',
-                state: '',
-                city: '',
-                gender: '',
-              );
-              widget.onUserTap?.call(mockUser);
-            },
+              onTap: () {
+                final mockUser = MockUser(
+                  username: user.username,
+                  name: user.name,
+                  avatar: user.avatar,
+                  coverImage: '',
+                  isVerified: false,
+                  bio: '',
+                  type: 'public',
+                  country: '',
+                  state: '',
+                  city: '',
+                  gender: '',
+                );
+                // Clear search and go to profile properly
+                FocusScope.of(context).unfocus();
+                widget.onUserTap?.call(mockUser);
+              },
           );
         }),
 
@@ -1454,8 +1455,12 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           ),
 
         // ── Media ─────────────────────────────────────────────────────────
+
+// ── Action bar ───────────────────────────────────────────────────────
+    // ── Media ─────────────────────────────────────────────────────────────
+    if (_isUnlocked(post))
     ClipRRect(
-    borderRadius: BorderRadius.circular(20),
+    borderRadius: BorderRadius.circular(12),
     child: Stack(
     children: [
     ConstrainedBox(
@@ -1468,95 +1473,80 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     child: _buildMediaPreview(post),
     ),
     ),
-      Positioned(
-        top: 10,
-        left: 10,
-        child: InkWell(
-          onTap: () => _showContentDetails(post),
-          child: Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(
-              Icons.info_outline,
-              color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white
-                  : Colors.black,
-              size: 18,
-            ),
-          ),
-        ),
-      ),
-    if (!_isUnlocked(post))
-    Positioned.fill(
-    child: _buildLockedOverlay(context, post),
+    Positioned(
+    top: 10,
+    left: 10,
+    child: InkWell(
+    onTap: () => _showContentDetails(post),
+    child: Container(
+    padding: const EdgeInsets.all(6),
+    decoration: BoxDecoration(
+    color: Colors.black54,
+    borderRadius: BorderRadius.circular(20),
     ),
-
-
+    child: const Icon(Icons.info_outline, color: Colors.white, size: 18),
+    ),
+    ),
+    ),
     ],
     ),
-    ),
+    )
+    else
+    _buildLockedOverlay(context, post),
 
-        // ── Action bar ───────────────────────────────────────────────────
-
+// ── Action bar ───────────────────────────────────────────────────────
+    if (_isUnlocked(post))
     Padding(
-    padding: const EdgeInsets.fromLTRB(
-    16,
-    10,
-    16,
-    10,
-    ),
-          child:Row(
-            children: [
-              _buildActionButton(
-                icon: isLiked ? Icons.favorite :  Icons.favorite_border,
-                color: _kPink,
-                label: '${post['likeCount'] ?? 0}',
-                onTap: () => widget.onPostAction(post, 'Like'),
-              ),
-              // Comment
-              _buildActionButton(
-                icon: Icons.chat_bubble_outline_rounded,
-                color: _expandedPostIds.contains(postIdStr)
-                    ? _kPink
-                    : Theme.of(context).brightness == Brightness.dark
-                    ? Colors.white
-                    : Colors.black87,
-                label: '$commentCount',
-                onTap: () => _toggleComments(postIdStr),
-              ),
-
-              // const Icon(
-              //   Icons.star_border,
-              //   color: Colors.white,
-              // ),
-
-
-    GestureDetector(
-    onTap: () => _showRatingDialog(post),
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
     child: Row(
     children: [
-    const Icon(
+    _buildActionButton(
+    icon: isLiked ? Icons.favorite : Icons.favorite_border,
+    color: isLiked ? _kPink : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
+    label: '${post['likeCount'] ?? 0}',
+    onTap: () => widget.onPostAction(post, 'Like'),
+    ),
+    _buildActionButton(
+    icon: Icons.chat_bubble_outline_rounded,
+    color: _expandedPostIds.contains(postIdStr)
+    ? _kPink
+        : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
+    label: '$commentCount',
+    onTap: () => _toggleComments(postIdStr),
+    ),
+    GestureDetector(
+    onTap: () => _showRatingDialog(post),
+    child: Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+    child: Row(
+    children: [
+    Icon(
     Icons.star,
-    color: Colors.amber,
+    color: (post['user_rating'] != null && post['user_rating'] != 0)
+    ? Colors.amber
+        : Colors.grey,
     size: 20,
     ),
     const SizedBox(width: 4),
     Text(
-        avgRating.round().toString(),
+    avgRating > 0 ? avgRating.toStringAsFixed(1) : '0',
     style: TextStyle(
     color: Theme.of(context).textTheme.bodyMedium?.color,
     fontWeight: FontWeight.w600,
+    fontSize: 12,
     ),
     ),
     ],
     ),
     ),
-            ],
-          ),
-        ),
+    ),
+    ],
+    ),
+    ),
+
+
+
+
 
         // ── Comments section ─────────────────────────────────────────────
         if (_expandedPostIds.contains(postIdStr))
@@ -1747,131 +1737,99 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final theme = Theme.of(context);
 
     return Container(
-      height: 280,
       width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       decoration: BoxDecoration(
         color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Lock Icon
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _kPink.withOpacity(.12),
-                ),
-                child: const Icon(
-                  Icons.lock_outline_rounded,
-                  size: 40,
-                  color: _kPink,
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              Text(
-                "Premium Content",
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                "Subscribe to unlock this content",
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.textTheme.bodyMedium?.color?.withOpacity(.7),
-                ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Price Badge
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: _kPink.withOpacity(.12),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
-                    color: _kPink,
-                    width: 1.2,
-                  ),
-                ),
-                child: Text(
-                  "₹${post["price"] ?? "0"}",
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: _kPink,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Subscribe Button
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton.icon(
-                  onPressed: paymentState.isLoading
-                      ? null
-                      : () async {
-                    await ref
-                        .read(paymentViewModelProvider.notifier)
-                        .buyPost(
-                      postId: post["id"],
-                    );
-                  },
-                  icon: paymentState.isLoading
-                      ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                      : const Icon(
-                    Icons.workspace_premium_rounded,
-                    color: Colors.white,
-                  ),
-                  label: Text(
-                    paymentState.isLoading
-                        ? "Processing..."
-                        : "Add to Cart",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _kPink,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                    _kPink.withOpacity(0.6),
-                    disabledForegroundColor: Colors.white70,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _kPink.withOpacity(.12),
+            ),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              size: 40,
+              color: _kPink,
+            ),
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            "Premium Content",
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Subscribe to unlock this content",
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.textTheme.bodyMedium?.color?.withOpacity(.7),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: _kPink.withOpacity(.12),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: _kPink, width: 1.2),
+            ),
+            child: Text(
+              "₹${post["price"] ?? "0"}",
+              style: theme.textTheme.titleMedium?.copyWith(
+                color: _kPink,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: paymentState.isLoading
+                  ? null
+                  : () async {
+                await ref
+                    .read(paymentViewModelProvider.notifier)
+                    .buyPost(postId: post["id"]);
+              },
+              icon: paymentState.isLoading
+                  ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              )
+                  : const Icon(Icons.workspace_premium_rounded, color: Colors.white),
+              label: Text(
+                paymentState.isLoading ? "Processing..." : "Add to Cart",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kPink,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: _kPink.withOpacity(0.6),
+                disabledForegroundColor: Colors.white70,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1918,22 +1876,19 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   }
 
   // ── Avatar helper ──────────────────────────────────────────────────────────
- Widget _buildAvatar(String avatar, {double radius = 20}) {
-    if (avatar.startsWith('http')) {
+  Widget _buildAvatar(String avatar, {double radius = 20}) {
+    if (avatar.isNotEmpty && (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
       return CircleAvatar(
         radius: radius,
         backgroundImage: NetworkImage(avatar),
-
-      );
-    } else if (avatar.isNotEmpty) {
-      return CircleAvatar(
-        radius: radius,
-        backgroundImage: NetworkImage(avatar),
+        onBackgroundImageError: (_, __) {},
+        backgroundColor: _kPink.withOpacity(0.2),
       );
     }
     return CircleAvatar(
       radius: radius,
-      backgroundImage: NetworkImage(avatar),
+      backgroundColor: _kPink.withOpacity(0.2),
+      child: Icon(Icons.person, color: _kPink, size: radius),
     );
   }
   // Widget _buildAvatar(String avatar, {double radius = 20}) {

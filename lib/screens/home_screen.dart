@@ -426,20 +426,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             'id': p.id,
             'title': p.title,
             'author': p.user.name,
-
-            'average_rating': p.averageRating,
-            'total_ratings': p.totalRatings,
-
-            'user_rating': p.userRating,
-
+            'avatar': p.user.avatar ?? '',
+            'avatar_url': p.user.avatar ?? '',
+            'authorAvatar': p.user.avatar ?? '',
+            'userAvatar': p.user.avatar ?? '',
+            'text': p.text,
+            'content': p.text,
+            'type': _toWidgetType(p.postType.name),
+            'post_type': p.postType.name,
             'image': p.image,
+            'audio_url': p.audioUrl,
+            'video_url': p.videoUrl,
+            'literature_url': p.literatureUrl,
+            'preview_url': p.previewUrl,
+            'duration': p.duration,
             'likeCount': p.likesCount,
             'commentsCount': p.commentsCount,
+            'comments': p.comments ?? [],
+            'is_liked': p.isLiked,
+            'is_bookmarked': p.isBookmarked,
+            'is_premium': p.isPremium,
+            'price': p.price,
+            'in_cart': p.inCart,
+            'is_purchased': p.isPurchased,
+            'vat_percent': p.vatPercent,
+            'average_rating': p.averageRating,
+            'total_ratings': p.totalRatings,
+            'user_rating': p.userRating,
+            'date': p.createdAt,
+            'views': p.views,
+            'fans_status': p.fansStatus,
+            'isUserPost': false,
+            'verified': p.user.verified,
+            'post_width': width,
+            'post_height': height,
           });
-          setState(() {
-            _communityPosts = mapped;
-            _feedLoaded = true;
-          });
+          if (mounted) {
+            setState(() {
+              _communityPosts = mapped;
+              _feedLoaded = true;
+            });
+            await _saveCachedFeed(prefs, mapped);
+          }
 
           await _saveCachedFeed(prefs, mapped);
         }
@@ -2721,42 +2749,49 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   return Column(
                     children: [
                       if (_currentIndex == 0 && _selectedHomeUser == null)
-                        TopSearchBar(
-                            onChanged: (value) {
-                              _onSearchChanged(value);
-                            },
-                          onTap: () {},
-                          onHomeTap: () {
-                            setState(() => _currentIndex = 0);
-                            if (_mainContentSelectedIndexNotifier.value != 0) {
-                              _mainContentSelectedIndexNotifier.value = 0;
-                            }
-                            if (_mainContentKey.currentState != null) {
-                              _mainContentKey.currentState!.resetToFeed();
-                            }
-                            _pageController.animateToPage(0,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut);
-                          },
-                          onSettingsTap: () {
-                            setState(() => _currentIndex = 4);
-                            _pageController.animateToPage(4,
-                                duration: const Duration(milliseconds: 300),
-                                curve: Curves.easeInOut);
-                          },
-                          onThemeTap: () => MyApp.of(context).toggleTheme(),
-                          onLogoutTap: _handleLogout,
-                          onFaqTap: _showFaqDialog,
-                          cartItemsNotifier: _cartItemsNotifier,
-                          onIncrementCart: _handleIncrementCart,
-                          onDecrementCart: _handleDecrementCart,
-                          onRemoveCart: _handleRemoveCart,
-                          validateCartItemExists: _validateCartItemExists,
-                          notificationsNotifier: _notificationsNotifier,
-                          onNotificationsUpdated: _updateNotifications,
-                          onNotificationTap: _handleNotificationTap,
-                          currentUser: _getCurrentUser(),
-                        ),
+                  TopSearchBar(
+                    onChanged: (value) {
+                      _onSearchChanged(value);
+                    },
+                    onTap: () {},
+                    onHomeTap: () {
+                      setState(() => _currentIndex = 0);
+                      if (_mainContentSelectedIndexNotifier.value != 0) {
+                        _mainContentSelectedIndexNotifier.value = 0;
+                      }
+                      if (_mainContentKey.currentState != null) {
+                        _mainContentKey.currentState!.resetToFeed();
+                      }
+                      _pageController.animateToPage(0,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut);
+                    },
+                    onSettingsTap: () {
+                      setState(() => _currentIndex = 4);
+                      _pageController.animateToPage(4,
+                          duration: const Duration(milliseconds: 300),
+                          curve: Curves.easeInOut);
+                    },
+                    onThemeTap: () => MyApp.of(context).toggleTheme(),
+                    onLogoutTap: _handleLogout,
+                    onFaqTap: _showFaqDialog,
+                    cartItemsNotifier: _cartItemsNotifier,
+                    onIncrementCart: _handleIncrementCart,
+                    onDecrementCart: _handleDecrementCart,
+                    onRemoveCart: _handleRemoveCart,
+                    validateCartItemExists: _validateCartItemExists,
+                    notificationsNotifier: _notificationsNotifier,
+                    onNotificationsUpdated: _updateNotifications,
+                    onNotificationTap: _handleNotificationTap,
+                    currentUser: _getCurrentUser(),
+                    onUserTap: (user) {
+                      setState(() {
+                        _selectedHomeUser = user;
+                        _currentIndex = 0;
+                        if (_pageController.hasClients) _pageController.jumpToPage(0);
+                      });
+                    },
+                  ),
                       Expanded(
                         child: LayoutBuilder(
                             builder: (context, contentConstraints) {

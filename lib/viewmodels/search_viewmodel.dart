@@ -76,7 +76,9 @@ class SearchViewModel extends StateNotifier<SearchState> {
       );
     }
   }
-
+  void clear() {
+    state = state.copyWith(users: [], isLoading: false, error: null);
+  }
   void clearSearch() {
     state = SearchState();
   }
