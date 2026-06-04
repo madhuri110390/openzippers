@@ -1,12 +1,14 @@
 import 'dart:io';
 import 'package:dio/dio.dart' hide Headers;
 import 'package:retrofit/retrofit.dart';
+import '../models/album_response.dart';
 import '../models/block_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
 import '../models/delete_post_response.dart';
 import '../models/email_verfication_response.dart';
 import '../models/follow_response.dart';
+import '../models/individual_album_response.dart';
 import '../models/like_response.dart';
 import '../models/post_checkout_response.dart';
 import '../models/rating_response.dart';
@@ -82,6 +84,7 @@ abstract class ApiClient {
     "Accept": "application/json",
   })
   Future<List<Country>> getCountries();
+
 //state
   @GET("https://openzippers.com/api/states")
   @Headers(<String, dynamic>{
@@ -130,8 +133,7 @@ abstract class ApiClient {
 //profile
   @GET("users/{id}")
   @Headers(<String, dynamic>{"Accept": "application/json"})
-  Future<RegisterResponse> getUserById(@Path("id") int id,
-      );
+  Future<RegisterResponse> getUserById(@Path("id") int id,);
 
   //status offline/online
   @GET("/presence")
@@ -170,13 +172,13 @@ abstract class ApiClient {
     "Accept": "application/json",
   })
   Future<LikeResponse> toggleLike(@Body() Map<String, dynamic> body);
-  
+
   //comments
-@POST("zippfans/comments")
-@Headers(<String,dynamic>{
-  "Accept": "application/json",
-})
-Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
+  @POST("zippfans/comments")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
 
 //delete post
   @DELETE("zippfans/posts/{postId}")
@@ -208,9 +210,7 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
   @Headers(<String, dynamic>{
     "Accept": "application/json",
   })
-  Future<RatingResponse> submitRating(
-      @Body() Map<String, dynamic> body,
-      );
+  Future<RatingResponse> submitRating(@Body() Map<String, dynamic> body,);
 
   // support contact
   @POST("support/contact")
@@ -218,8 +218,7 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
     "Accept": "application/json",
   })
   Future<SupportContactResponse> submitSupportContact(
-      @Body() Map<String, dynamic> body,
-      );
+      @Body() Map<String, dynamic> body,);
 
   // global search
   @GET("zippfans/search/global")
@@ -235,18 +234,15 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
   @Headers(<String, dynamic>{
     "Accept": "application/json",
   })
-  Future<BlockResponse> toggleBlock(
-      @Body() Map<String, dynamic> body,
-      );
+  Future<BlockResponse> toggleBlock(@Body() Map<String, dynamic> body,);
 
   // follow/unfollow user
   @POST("zippfans/users/follow-toggle")
   @Headers(<String, dynamic>{
     "Accept": "application/json",
   })
-  Future<FollowResponse> toggleFollow(
-      @Body() Map<String, dynamic> body,
-      );
+  Future<FollowResponse> toggleFollow(@Body() Map<String, dynamic> body,);
+
   @GET("/user/wallet")
   Future<WalletResponse> getWalletBalance();
 
@@ -256,9 +252,9 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
   })
   Future<SubscriptionStatusResponse>
   getSubscriptionStatus({
-    @Query("artist_id")
-    required int artistId,
+    @Query("artist_id") required int artistId,
   });
+
 // creator verification
   @POST("zippfans/creator/verification-documents")
   @Headers(<String, dynamic>{
@@ -266,14 +262,11 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
   })
   @MultiPart()
   Future<VerificationResponse> uploadVerificationDocuments({
-    @Part(name: 'government_id_front')
-    required File governmentIdFront,
+    @Part(name: 'government_id_front') required File governmentIdFront,
 
-    @Part(name: 'government_id_back')
-    required File governmentIdBack,
+    @Part(name: 'government_id_back') required File governmentIdBack,
 
-    @Part(name: 'passport_photo')
-    required File passportPhoto,
+    @Part(name: 'passport_photo') required File passportPhoto,
   });
 
   // email verification send
@@ -289,6 +282,18 @@ Future<CommentResponse> postComment(@Body() Map<String, dynamic> body);
     "Accept": "application/json",
   })
   Future<PostCheckoutResponse> createPostCheckout(
-      @Body() Map<String, dynamic> body,
-      );
+      @Body() Map<String, dynamic> body,);
+
+
+  @GET("zippfans/albums")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<AlbumsResponse> getAlbums();
+
+  //individual_album
+  @GET("zippfans/albums/{id}")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<IndividualAlbumResponse> getIndividualAlbums({
+    @Path("id") required int id,
+  });
+
 }

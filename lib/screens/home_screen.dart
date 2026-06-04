@@ -14,6 +14,7 @@ import '../network/api_client.dart';
 import '../providers/rating_provider.dart';
 import '../viewmodels/comment_viewmodel.dart';
 import '../viewmodels/search_viewmodel.dart';
+import 'albums_screen.dart';
 import 'literature_pdf_viewer_screen.dart';
 import '../viewmodels/feed_viewmodel.dart';
 import '../viewmodels/like_viewmodel.dart';
@@ -3159,21 +3160,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             _loadData();
           },
         ),
-        ConnectionsScreen(
-          users: _allUsers,
-          username: _getCurrentUser().username,
-          posts: _allPosts,
-          onPostAction: _handlePostAction,
-          onUserAction: _handleUserAction,
-          highlightUser: _connectionsHighlightUser,
-          onUserTap: (user) {
-            setState(() {
-              _selectedHomeUser = user;
-              _currentIndex = 1;
-              if (_pageController.hasClients) _pageController.jumpToPage(0);
-            });
-          },
-        ),
+        AlbumsScreen(),
         ConnectionsScreen(
           users: _allUsers,
           username: _getCurrentUser().username,
@@ -3461,9 +3448,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             label: context.tr.home,
           ),
           BottomNavigationBarItem(
-            icon: const Icon(Icons.people_outline),
-            activeIcon: const Icon(Icons.people),
-            label: context.tr.connections,
+            icon: const Icon(Icons.photo_library),
+            activeIcon: const Icon(Icons.photo_library),
+            label: context.tr.albums,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.people_outline),
