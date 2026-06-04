@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../models/album_model.dart';
 import '../models/album_response.dart';
 import '../viewmodels/album_viewmodel.dart';
+import 'create_edit_album_dialog.dart';
 
 class AlbumsScreen extends ConsumerStatefulWidget {
   const AlbumsScreen({super.key});
@@ -67,83 +67,91 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                       final isMobile = constraints.maxWidth < 500;
                       return isMobile
                           ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: album.coverImage != null
-                                  ? Image.network(
-                                album.coverImage!,
-                                width: 140,
-                                height: 140,
-                                fit: BoxFit.cover,
-                              )
-                                  : Container(
-                                width: 140,
-                                height: 140,
-                                color: const Color(0xff33435F),
-                                child: const Icon(
-                                    Icons.music_note,
-                                    color: Colors.white54,
-                                    size: 50),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            album.title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            album.isPublic == true
-                                ? "Public"
-                                : "Private",
-                            style: const TextStyle(
-                                color: Colors.white60),
-                          ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () {},
-                              icon: const Icon(Icons.play_arrow),
-                              label: const Text("Play Album"),
-                            ),
-                          ),
-                        ],
-                      )
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: album.coverImage != null
+                                        ? Image.network(
+                                            album.coverImage!,
+                                            width: 140,
+                                            height: 140,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 140,
+                                            height: 140,
+                                            color: const Color(0xff33435F),
+                                            child: const Icon(
+                                              Icons.music_note,
+                                              color: Colors.white54,
+                                              size: 50,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  album.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  album.isPublic == true ? "Public" : "Private",
+                                  style: const TextStyle(color: Colors.white60),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xffFF3B9D),
+                                    ),
+                                    onPressed: () {},
+                                    icon: const Icon(
+                                      Icons.play_arrow,
+                                      color: Colors.white,
+                                    ),
+                                    label: const Text(
+                                      "Play Album",
+                                      style: TextStyle(color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
                           : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Center(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: album.coverImage != null
-                                  ? Image.network(
-                                album.coverImage!,
-                                width: 140,
-                                height: 140,
-                                fit: BoxFit.cover,
-                              )
-                                  : Container(
-                                width: 140,
-                                height: 140,
-                                color: const Color(0xff33435F),
-                                child: const Icon(
-                                    Icons.music_note,
-                                    color: Colors.white54,
-                                    size: 50),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Center(
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: album.coverImage != null
+                                        ? Image.network(
+                                            album.coverImage!,
+                                            width: 140,
+                                            height: 140,
+                                            fit: BoxFit.cover,
+                                          )
+                                        : Container(
+                                            width: 140,
+                                            height: 140,
+                                            color: const Color(0xff33435F),
+                                            child: const Icon(
+                                              Icons.music_note,
+                                              color: Colors.white54,
+                                              size: 50,
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                              ],
+                            );
                     },
                   ),
                   const SizedBox(height: 24),
@@ -196,9 +204,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
               children: [
                 Text(title, style: const TextStyle(color: Colors.white)),
                 const SizedBox(height: 4),
-                const Text("0:00",
-                    style:
-                    TextStyle(color: Colors.white54, fontSize: 12)),
+                const Text(
+                  "0:00",
+                  style: TextStyle(color: Colors.white54, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -249,8 +258,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                           const Spacer(),
                           IconButton(
                             onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.close,
-                                color: Colors.white70),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Colors.white70,
+                            ),
                           ),
                         ],
                       ),
@@ -259,8 +270,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text("Album Title",
-                              style: TextStyle(color: Colors.white70)),
+                          const Text(
+                            "Album Title",
+                            style: TextStyle(color: Colors.white70),
+                          ),
                           const SizedBox(height: 8),
                           TextField(
                             controller: titleController,
@@ -277,30 +290,30 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                           Center(
                             child: Column(
                               children: [
-                                const Text("Album Cover",
-                                    style: TextStyle(
-                                        color: Colors.white70)),
+                                const Text(
+                                  "Album Cover",
+                                  style: TextStyle(color: Colors.white70),
+                                ),
                                 const SizedBox(height: 10),
                                 ClipRRect(
-                                  borderRadius:
-                                  BorderRadius.circular(12),
+                                  borderRadius: BorderRadius.circular(12),
                                   child: album.coverImage != null
                                       ? Image.network(
-                                    album.coverImage!,
-                                    width: 130,
-                                    height: 130,
-                                    fit: BoxFit.cover,
-                                  )
+                                          album.coverImage!,
+                                          width: 130,
+                                          height: 130,
+                                          fit: BoxFit.cover,
+                                        )
                                       : Container(
-                                    width: 130,
-                                    height: 130,
-                                    color:
-                                    const Color(0xff33435F),
-                                    child: const Icon(
-                                        Icons.music_note,
-                                        color: Colors.white54,
-                                        size: 50),
-                                  ),
+                                          width: 130,
+                                          height: 130,
+                                          color: const Color(0xff33435F),
+                                          child: const Icon(
+                                            Icons.music_note,
+                                            color: Colors.white54,
+                                            size: 50,
+                                          ),
+                                        ),
                                 ),
                               ],
                             ),
@@ -308,9 +321,10 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                           const SizedBox(height: 20),
                           Row(
                             children: [
-                              const Text("Visibility",
-                                  style: TextStyle(
-                                      color: Colors.white70)),
+                              const Text(
+                                "Visibility",
+                                style: TextStyle(color: Colors.white70),
+                              ),
                               const SizedBox(width: 12),
                               Switch(
                                 value: isPublic,
@@ -319,8 +333,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                               ),
                               Text(
                                 isPublic ? "Public" : "Private",
-                                style: const TextStyle(
-                                    color: Colors.white70),
+                                style: const TextStyle(color: Colors.white70),
                               ),
                             ],
                           ),
@@ -349,30 +362,33 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text("Select Media",
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600)),
+                            const Text(
+                              "Select Media",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                             const SizedBox(height: 6),
                             const Text(
-                                "Add 6 to 15 tracks — 0 / 15 tracks",
-                                style:
-                                TextStyle(color: Colors.white54)),
+                              "Add 6 to 15 tracks — 0 / 15 tracks",
+                              style: TextStyle(color: Colors.white54),
+                            ),
                             const SizedBox(height: 20),
-                            const Text("🎵 Songs (2)",
-                                style:
-                                TextStyle(color: Colors.white)),
+                            const Text(
+                              "🎵 Songs (2)",
+                              style: TextStyle(color: Colors.white),
+                            ),
                             const SizedBox(height: 10),
                             _mediaTile("Travis Scott Type Beat"),
-                            _mediaTile(
-                                "Shawn Mendes – Treat You Better"),
+                            _mediaTile("Shawn Mendes – Treat You Better"),
                             const SizedBox(height: 20),
-                            const Text("🎥 Videos (3)",
-                                style:
-                                TextStyle(color: Colors.white)),
+                            const Text(
+                              "🎥 Videos (3)",
+                              style: TextStyle(color: Colors.white),
+                            ),
                             const SizedBox(height: 10),
-                            _mediaTile(
-                                "Rolling Loud 2021 Kanye West"),
+                            _mediaTile("Rolling Loud 2021 Kanye West"),
                             _mediaTile("Zayn singing Night Changes"),
                             _mediaTile("test"),
                           ],
@@ -384,18 +400,21 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                         children: [
                           TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text("Cancel",
-                                style: TextStyle(
-                                    color: Colors.white70)),
+                            child: const Text(
+                              "Cancel",
+                              style: TextStyle(color: Colors.white70),
+                            ),
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                              const Color(0xffFF3B9D),
+                              backgroundColor: const Color(0xffFF3B9D),
                             ),
                             onPressed: () => Navigator.pop(context),
-                            child: const Text("Update Album"),
+                            child: const Text(
+                              "Update Album",
+                              style: TextStyle(color: Colors.white),
+                            ),
                           ),
                         ],
                       ),
@@ -428,8 +447,11 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.warning_amber_rounded,
-                        color: Colors.red, size: 28),
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red,
+                      size: 28,
+                    ),
                     const SizedBox(width: 12),
                     const Text(
                       "Delete Album",
@@ -447,22 +469,22 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                   child: RichText(
                     text: TextSpan(
                       style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 15,
-                          height: 1.5),
+                        color: Colors.white70,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
                       children: [
                         const TextSpan(
-                            text:
-                            "Are you sure you want to delete "),
+                          text: "Are you sure you want to delete ",
+                        ),
                         TextSpan(
                           text: '"${album.title}"',
                           style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600),
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        const TextSpan(
-                            text:
-                            "? This action cannot be undone."),
+                        const TextSpan(text: "? This action cannot be undone."),
                       ],
                     ),
                   ),
@@ -474,15 +496,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                   children: [
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text("Cancel",
-                          style: TextStyle(
-                              color: Colors.white70, fontSize: 16)),
+                      child: const Text(
+                        "Cancel",
+                        style: TextStyle(color: Colors.white70, fontSize: 16),
+                      ),
                     ),
                     SizedBox(
                       height: 44,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red),
+                          backgroundColor: Colors.red,
+                        ),
                         onPressed: () {
                           ref
                               .read(albumViewModelProvider.notifier)
@@ -543,8 +567,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
         elevation: 0,
         title: const Text(
           "Albums",
-          style: TextStyle(
-              fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
           Padding(
@@ -556,10 +579,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onPressed: () {},
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (_) => const CreateEditAlbumDialog(),
+                );
+              },
               icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text("Create",
-                  style: TextStyle(color: Colors.white)),
+              label: const Text(
+                "Create",
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ),
         ],
@@ -576,11 +606,12 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
         ),
       ),
       body: asyncState.when(
-        loading: () =>
-        const Center(child: CircularProgressIndicator()),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text(e.toString(),
-              style: const TextStyle(color: Colors.white)),
+          child: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.white),
+          ),
         ),
         data: (response) => TabBarView(
           controller: _tabController,
@@ -597,8 +628,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
   Widget _myAlbumsTab(List<Album> albums) {
     if (albums.isEmpty) {
       return const Center(
-        child: Text("No Albums Found",
-            style: TextStyle(color: Colors.white)),
+        child: Text("No Albums Found", style: TextStyle(color: Colors.white)),
       );
     }
     return ListView.builder(
@@ -621,21 +651,23 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                     borderRadius: BorderRadius.circular(10),
                     child: album.coverImage != null
                         ? Image.network(
-                      album.coverImage!,
-                      width: 70,
-                      height: 70,
-                      fit: BoxFit.cover,
-                    )
+                            album.coverImage!,
+                            width: 70,
+                            height: 70,
+                            fit: BoxFit.cover,
+                          )
                         : Container(
-                      width: 70,
-                      height: 70,
-                      decoration: BoxDecoration(
-                        color: const Color(0xff33435F),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(Icons.music_note,
-                          color: Colors.white54),
-                    ),
+                            width: 70,
+                            height: 70,
+                            decoration: BoxDecoration(
+                              color: const Color(0xff33435F),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.music_note,
+                              color: Colors.white54,
+                            ),
+                          ),
                   ),
                   Positioned(
                     right: -2,
@@ -677,8 +709,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                     const SizedBox(height: 4),
                     Text(
                       album.isPublic == true ? "Public" : "Private",
-                      style:
-                      const TextStyle(color: Colors.white70),
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
@@ -686,20 +717,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
               IconButton(
                 icon: const Icon(Icons.remove_red_eye_outlined),
                 color: Colors.white70,
-                onPressed: () =>
-                    _showAlbumDetails(context, album),
+                onPressed: () => _showAlbumDetails(context, album),
               ),
               IconButton(
                 icon: const Icon(Icons.edit_outlined),
                 color: Colors.white70,
-                onPressed: () =>
-                    _showEditAlbumDialog(context, album),
+                onPressed: () => _showEditAlbumDialog(context, album),
               ),
               IconButton(
                 icon: const Icon(Icons.delete_outline),
                 color: Colors.white70,
-                onPressed: () =>
-                    _showDeleteAlbumDialog(context, album),
+                onPressed: () => _showDeleteAlbumDialog(context, album),
               ),
             ],
           ),
@@ -711,8 +739,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
   Widget _publicAlbumsTab(List<Album> albums) {
     if (albums.isEmpty) {
       return const Center(
-        child: Text("No Public Albums",
-            style: TextStyle(color: Colors.white)),
+        child: Text("No Public Albums", style: TextStyle(color: Colors.white)),
       );
     }
     return ListView.builder(
@@ -720,8 +747,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
       itemBuilder: (context, index) {
         final album = albums[index];
         return ListTile(
-          title: Text(album.title,
-              style: const TextStyle(color: Colors.white)),
+          title: Text(album.title, style: const TextStyle(color: Colors.white)),
         );
       },
     );
@@ -738,16 +764,16 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
               const CircleAvatar(
                 radius: 45,
                 backgroundColor: Color(0xff2A3C5A),
-                child: Icon(Icons.music_note,
-                    size: 45, color: Colors.white54),
+                child: Icon(Icons.music_note, size: 45, color: Colors.white54),
               ),
               const SizedBox(height: 20),
               const Text(
                 "No purchased albums yet",
                 style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold),
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -760,11 +786,15 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xffFF3B9D),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                 ),
                 onPressed: () {},
-                child: const Text("Browse Albums",
-                    style: TextStyle(color: Colors.white)),
+                child: const Text(
+                  "Browse Albums",
+                  style: TextStyle(color: Colors.white),
+                ),
               ),
             ],
           ),
@@ -776,8 +806,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
       itemBuilder: (context, index) {
         final album = purchasedAlbums[index];
         return ListTile(
-          title: Text(album.title,
-              style: const TextStyle(color: Colors.white)),
+          title: Text(album.title, style: const TextStyle(color: Colors.white)),
         );
       },
     );
