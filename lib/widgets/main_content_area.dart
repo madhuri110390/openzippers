@@ -4,9 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart' as widgets;
 import 'dart:async';
 import 'dart:convert';
-import '../providers/payment_provider.dart';
+import '../providers/cart_provider.dart';
 import '../providers/rating_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../screens/cart_screen.dart';
 import '../viewmodels/search_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
@@ -45,7 +46,8 @@ class MainContentArea extends ConsumerStatefulWidget {
   final List<MockUser> users;
   final Function(Map<String, dynamic>) onPostCreated;
   final Function(Map<String, dynamic>) onPostDeleted;
-  final Function(Map<String, dynamic>, String, {dynamic extraData}) onPostAction;
+  final Function(Map<String, dynamic>, String, {dynamic extraData})
+  onPostAction;
   final Function(Map<String, dynamic>)? onAddToCart;
   final MockUser currentUser;
   final MockUser? user;
@@ -57,11 +59,16 @@ class MainContentArea extends ConsumerStatefulWidget {
   final VoidCallback? onInfoTap;
   final ValueNotifier<List<Map<String, dynamic>>>? cartItemsNotifier;
   final Function(Function(int))? onScrollToPostReady;
-  final Function(Function(int,
-      {bool expandComments,
+  final Function(
+    Function(
+      int, {
+      bool expandComments,
       String? commentAuthor,
       String? commentText,
-      dynamic commentId}))? onScrollToPostWithCommentsReady;
+      dynamic commentId,
+    }),
+  )?
+  onScrollToPostWithCommentsReady;
   final ValueNotifier<int>? selectedIndexNotifier;
   final bool isActive;
   final int? targetPostId;
@@ -110,11 +117,14 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     if (_localUserOverride != null) return _localUserOverride!;
     final baseUser = widget.user ?? widget.currentUser;
     if (widget.users.isNotEmpty) {
-      final idx = widget.users.indexWhere((u) => u.username == baseUser.username);
+      final idx = widget.users.indexWhere(
+        (u) => u.username == baseUser.username,
+      );
       if (idx != -1) return widget.users[idx];
     }
     return baseUser;
   }
+
   @override
   bool get wantKeepAlive => true;
 
@@ -169,9 +179,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         widget.selectedIndexNotifier?.value = 0;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (_scrollController.hasClients) {
-            _scrollController.animateTo(0,
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeOut);
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
           }
         });
       }
@@ -197,8 +209,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         .trim();
   }
 
-  bool _isHtmlContent(String text) =>
-      RegExp(r'<[a-zA-Z][^>]*>').hasMatch(text);
+  bool _isHtmlContent(String text) => RegExp(r'<[a-zA-Z][^>]*>').hasMatch(text);
 
   bool _isFree(dynamic price) {
     if (price == null) return true;
@@ -207,18 +218,21 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   }
 
   bool _isOwnPost(Map<String, dynamic> post) {
-    final postAuthor =
-        post['author']?.toString().trim().toLowerCase() ?? '';
-    final currentName =
-    widget.currentUser.name.toString().trim().toLowerCase();
-    final currentUsername =
-    widget.currentUser.username.toString().trim().toLowerCase();
+    final postAuthor = post['author']?.toString().trim().toLowerCase() ?? '';
+    final currentName = widget.currentUser.name.toString().trim().toLowerCase();
+    final currentUsername = widget.currentUser.username
+        .toString()
+        .trim()
+        .toLowerCase();
     if (postAuthor.isEmpty) return false;
     if (postAuthor == 'you') return true;
-    if (currentUsername.isNotEmpty && postAuthor == currentUsername) return true;
+    if (currentUsername.isNotEmpty && postAuthor == currentUsername)
+      return true;
     String strip(String s) => s
         .replaceAll(
-        RegExp(r'\s*\((Artist|User)\)\s*', caseSensitive: false), '')
+          RegExp(r'\s*\((Artist|User)\)\s*', caseSensitive: false),
+          '',
+        )
         .replaceAll(' ', '')
         .trim()
         .toLowerCase();
@@ -231,13 +245,16 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     if (author.toLowerCase().trim() == 'you') return true;
     String clean(String s) => s
         .replaceAll(
-        RegExp(r'\s*\((Artist|User)\)\s*', caseSensitive: false), '')
+          RegExp(r'\s*\((Artist|User)\)\s*', caseSensitive: false),
+          '',
+        )
         .replaceAll(' ', '')
         .trim()
         .toLowerCase();
     final target = clean(author);
     final idx = widget.users.indexWhere(
-            (u) => clean(u.name) == target || clean(u.username) == target);
+      (u) => clean(u.name) == target || clean(u.username) == target,
+    );
     return idx != -1 && widget.users[idx].isSubscribed;
   }
 
@@ -253,18 +270,21 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     if (postAuthor.isEmpty) return widget.currentUser;
     String clean(String s) => s
         .replaceAll(
-        RegExp(r'\s*\((Artist|User)\)\s*', caseSensitive: false), '')
+          RegExp(r'\s*\((Artist|User)\)\s*', caseSensitive: false),
+          '',
+        )
         .replaceAll(' ', '')
         .trim()
         .toLowerCase();
     final target = clean(postAuthor);
     return widget.users.firstWhere(
-          (u) => clean(u.name) == target || clean(u.username) == target,
+      (u) => clean(u.name) == target || clean(u.username) == target,
       orElse: () => MockUser(
-          name: postAuthor,
-          username: postAuthor.replaceAll(' ', '').toLowerCase(),
-          avatar: '',
-          type: 'other'),
+        name: postAuthor,
+        username: postAuthor.replaceAll(' ', '').toLowerCase(),
+        avatar: '',
+        type: 'other',
+      ),
     );
   }
 
@@ -317,7 +337,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
     return base.where((p) {
       if (widget.targetPostId != null &&
-          p['id']?.toString() == widget.targetPostId.toString()) return true;
+          p['id']?.toString() == widget.targetPostId.toString())
+        return true;
       final author = p['author']?.toString().trim() ?? '';
       if (_unfollowedAuthors.contains(author)) return false;
       final fans = p['zippfansStatus'] ?? p['fans_status'] ?? 0;
@@ -368,7 +389,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       widget.onScrollToPostReady!(_scrollToPost);
     }
     if (widget.onScrollToPostWithCommentsReady !=
-        oldWidget.onScrollToPostWithCommentsReady &&
+            oldWidget.onScrollToPostWithCommentsReady &&
         widget.onScrollToPostWithCommentsReady != null) {
       widget.onScrollToPostWithCommentsReady!(_scrollToPostWithComments);
     }
@@ -505,11 +526,15 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         final visBot = bottom > screenHeight ? screenHeight : bottom;
         final visH = visBot - visTop;
         if (visH <= 0) continue;
-        final post = _filteredPosts.firstWhere((p) => p['id'] == id,
-            orElse: () => <String, dynamic>{});
-        final rawType =
-        (post['type'] ?? post['post_type'] ?? '').toString().toLowerCase();
-        final isMedia = rawType == 'video' ||
+        final post = _filteredPosts.firstWhere(
+          (p) => p['id'] == id,
+          orElse: () => <String, dynamic>{},
+        );
+        final rawType = (post['type'] ?? post['post_type'] ?? '')
+            .toString()
+            .toLowerCase();
+        final isMedia =
+            rawType == 'video' ||
             rawType == 'reel' ||
             rawType == 'reels' ||
             rawType == 'song' ||
@@ -565,19 +590,20 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       _scrollToPostWithComments(postId);
 
   void _scrollToPostWithComments(
-      int postId, {
-        bool expandComments = false,
-        String? commentAuthor,
-        String? commentText,
-        dynamic commentId,
-      }) {
+    int postId, {
+    bool expandComments = false,
+    String? commentAuthor,
+    String? commentText,
+    dynamic commentId,
+  }) {
     if (_isUserInteracting) return;
     int retries = 0;
 
     void attempt() {
       if (!mounted || _isUserInteracting) return;
       final idx = _filteredPosts.indexWhere(
-              (p) => p['id'] == postId || p['id'].toString() == postId.toString());
+        (p) => p['id'] == postId || p['id'].toString() == postId.toString(),
+      );
       if (idx != -1) {
         if (expandComments) {
           final pidStr = postId.toString();
@@ -596,13 +622,17 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           if (!mounted || vis > 50) return;
           final key = _postKeys[postId];
           if (key?.currentContext != null) {
-            Scrollable.ensureVisible(key!.currentContext!,
-                duration: const Duration(milliseconds: 600),
-                curve: Curves.easeOutCubic,
-                alignment: 0.1);
+            Scrollable.ensureVisible(
+              key!.currentContext!,
+              duration: const Duration(milliseconds: 600),
+              curve: Curves.easeOutCubic,
+              alignment: 0.1,
+            );
           } else {
             Future.delayed(
-                const Duration(milliseconds: 200), () => scrollToKey(vis + 1));
+              const Duration(milliseconds: 200),
+              () => scrollToKey(vis + 1),
+            );
           }
         }
 
@@ -621,8 +651,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   // ── Albums ─────────────────────────────────────────────────────────────────
   Future<void> _loadAlbums() async {
     try {
-      final loaded =
-      await _dbHelper.getAlbums(username: widget.currentUser.username);
+      final loaded = await _dbHelper.getAlbums(
+        username: widget.currentUser.username,
+      );
       if (mounted) setState(() => _albums = loaded);
     } catch (e) {
       debugPrint('Error loading albums: $e');
@@ -631,36 +662,45 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
   void _deleteAlbum(Map<String, dynamic> album) {
     setState(() => _albums.remove(album));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(context.tr.albumDeleted),
-        backgroundColor: _kPink));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(context.tr.albumDeleted), backgroundColor: _kPink),
+    );
     if (album['id'] != null) _dbHelper.deleteAlbum(album['id']);
   }
 
   void _showAlbumDetailsDialog(Map<String, dynamic> album) {
     showDialog(
-        context: context,
-        builder: (context) => Dialog(
-            child: Column(mainAxisSize: MainAxisSize.min,
-                children: [Text(album['title'] ?? 'Album')])));
+      context: context,
+      builder: (context) => Dialog(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [Text(album['title'] ?? 'Album')],
+        ),
+      ),
+    );
   }
 
   void _showCreateAlbumDialog({Map<String, dynamic>? existingAlbum}) {}
-  void _playAlbum(Map<String, dynamic> album,
-      {List<Map<String, dynamic>>? allAlbums}) {}
+
+  void _playAlbum(
+    Map<String, dynamic> album, {
+    List<Map<String, dynamic>>? allAlbums,
+  }) {}
 
   // ── Share / report ─────────────────────────────────────────────────────────
   void _handleShare(Map<String, dynamic> post) async {
     final author = post['author'] == widget.currentUser.name
         ? context.tr.you
         : (post['author'] ?? context.tr.unknown);
-    final text =
-        '${post['title']}\n\nBy: $author\nShared from OpenZippers';
+    final text = '${post['title']}\n\nBy: $author\nShared from OpenZippers';
     await Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(context.tr.linkCopied),
         backgroundColor: _kPink,
-        duration: const Duration(seconds: 2)));
+        duration: const Duration(seconds: 2),
+      ),
+    );
     await Share.share(text, subject: post['title']);
   }
 
@@ -674,52 +714,70 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         return StatefulBuilder(
           builder: (context, ss) => Dialog(
             backgroundColor: theme.cardColor,
-            shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Text(context.tr.reportPostFormTitle,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    context.tr.reportPostFormTitle,
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 16),
-                MenuAnchor(
-                  menuChildren: [
-                    context.tr.categorySpam,
-                    context.tr.categoryInappropriate,
-                    context.tr.categoryHarassment,
-                    context.tr.categoryFalseInfo,
-                    context.tr.categoryCopyright,
-                    context.tr.categoryOther,
-                  ]
-                      .map((e) => MenuItemButton(
-                      onPressed: () => ss(() => selected = e),
-                      child: Text(e)))
-                      .toList(),
-                  builder: (_, controller, __) => OutlinedButton(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  MenuAnchor(
+                    menuChildren:
+                        [
+                              context.tr.categorySpam,
+                              context.tr.categoryInappropriate,
+                              context.tr.categoryHarassment,
+                              context.tr.categoryFalseInfo,
+                              context.tr.categoryCopyright,
+                              context.tr.categoryOther,
+                            ]
+                            .map(
+                              (e) => MenuItemButton(
+                                onPressed: () => ss(() => selected = e),
+                                child: Text(e),
+                              ),
+                            )
+                            .toList(),
+                    builder: (_, controller, __) => OutlinedButton(
                       onPressed: () => controller.isOpen
                           ? controller.close()
                           : controller.open(),
-                      child: Text(selected)),
-                ),
-                const SizedBox(height: 16),
-                TextField(
+                      child: Text(selected),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
                     controller: ctrl,
                     maxLines: 3,
                     decoration: InputDecoration(
-                        hintText: context.tr.enterDescription,
-                        border: const OutlineInputBorder())),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text(context.tr.reportSubmitted),
-                        backgroundColor: _kPink));
-                  },
-                  child: Text(context.tr.submit),
-                ),
-              ]),
+                      hintText: context.tr.enterDescription,
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(context.tr.reportSubmitted),
+                          backgroundColor: _kPink,
+                        ),
+                      );
+                    },
+                    child: Text(context.tr.submit),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -729,24 +787,32 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
   Future<void> _handleEditPost(Map<String, dynamic> post) async {
     final updated = await Navigator.push(
-        context,
-        MaterialPageRoute(
-            builder: (context) => CreatePostScreen(existingPost: post)));
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreatePostScreen(existingPost: post),
+      ),
+    );
     if (updated != null && updated is Map<String, dynamic>) {
       widget.onPostAction(updated, 'Update');
     }
   }
 
   Future<void> _navigateToCreatePost({String? initialType}) async {
-    final result = await Navigator.of(context).push(MaterialPageRoute(
-        builder: (context) => CreatePostScreen(initialType: initialType)));
+    final result = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CreatePostScreen(initialType: initialType),
+      ),
+    );
     if (result != null && result is Map<String, dynamic>) {
       widget.onPostCreated(result);
       if (mounted) {
         setState(() => _selectedIndex = 0);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
             content: Text(context.tr.postCreatedSuccessfully),
-            backgroundColor: _kPink));
+            backgroundColor: _kPink,
+          ),
+        );
       }
     }
   }
@@ -770,10 +836,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           try {
             await ref
                 .read(submitRatingProvider.notifier)
-                .submitRating(
-              postId: post['id'],
-              rating: stars,
-            );
+                .submitRating(postId: post['id'], rating: stars);
 
             if (!mounted) return;
 
@@ -782,9 +845,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               post['user_rating'] = stars;
 
               final currentTotal =
-              (post['total_ratings'] ??
-                  post['totalRatings'] ??
-                  0) as int;
+                  (post['total_ratings'] ?? post['totalRatings'] ?? 0) as int;
 
               post['total_ratings'] = currentTotal + 1;
               post['totalRatings'] = currentTotal + 1;
@@ -793,20 +854,16 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               post['averageRating'] = stars.toDouble();
             });
 
-            ref.invalidate(
-              ratingProvider(post['id']),
-            );
+            ref.invalidate(ratingProvider(post['id']));
 
             widget.onRefresh?.call();
 
             Navigator.of(dialogContext).pop();
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Rating submitted!'),
-              ),
-            );
-          }catch (e) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Rating submitted!')));
+          } catch (e) {
             debugPrint('Rating Error: $e');
           }
         },
@@ -815,6 +872,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   }
 
   void _showInfoDialog(Map<String, dynamic> post) {}
+
   void _showContentDetails(Map<String, dynamic> post) {
     showDialog(
       context: context,
@@ -840,18 +898,18 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             children: [
               _row(context, "Likes", "${post['likeCount'] ?? 0}"),
               _row(context, "Comments", "${post['commentsCount'] ?? 0}"),
-              _row(context, "Type", "${post['type'] ?? post['post_type'] ?? 'N/A'}"),
-              _row(context, "Size", "${post['file_size'] ?? 'N/A'}"),
-            _row(
-              context,
-              "Dimension",
-                "${post['post_width'] ?? 0} × ${post['post_height'] ?? 0}",
-            ),
               _row(
                 context,
-                "Uploaded On",
-                _formatDate(post['date']),
+                "Type",
+                "${post['type'] ?? post['post_type'] ?? 'N/A'}",
               ),
+              _row(context, "Size", "${post['file_size'] ?? 'N/A'}"),
+              _row(
+                context,
+                "Dimension",
+                "${post['post_width'] ?? 0} × ${post['post_height'] ?? 0}",
+              ),
+              _row(context, "Uploaded On", _formatDate(post['date'])),
             ],
           ),
         );
@@ -900,54 +958,63 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
     return Padding(
       padding: EdgeInsets.symmetric(
-          horizontal: isDesktop ? 20.0 : 16.0, vertical: 16.0),
+        horizontal: isDesktop ? 20.0 : 16.0,
+        vertical: 16.0,
+      ),
       child: IndexedStack(
         index: _selectedIndex == 4 ? 1 : 0,
         children: [
           // ── Main feed / search ──────────────────────────────────────────
-          Builder(builder: (context) {
-            if (_isLoading) return _buildShimmerLoader();
+          Builder(
+            builder: (context) {
+              if (_isLoading) return _buildShimmerLoader();
 
-            final showSearch = searchState.users.isNotEmpty &&
-                widget.searchQuery.isNotEmpty;
+              final showSearch =
+                  searchState.users.isNotEmpty && widget.searchQuery.isNotEmpty;
 
-            return ListView.builder(
-              controller: _scrollController,
-              physics: const ClampingScrollPhysics(),
-              cacheExtent: 3000,
-              padding: const EdgeInsets.only(bottom: 80),
-              itemCount:
-              _filteredPosts.length + 1 + (showSearch ? 1 : 0),
-              itemBuilder: (context, index) {
-                // Row 0 → header
-                if (index == 0) {
-                  return Padding(
+              return ListView.builder(
+                controller: _scrollController,
+                physics: const ClampingScrollPhysics(),
+                cacheExtent: 3000,
+                padding: const EdgeInsets.only(bottom: 80),
+                itemCount: _filteredPosts.length + 1 + (showSearch ? 1 : 0),
+                itemBuilder: (context, index) {
+                  // Row 0 → header
+                  if (index == 0) {
+                    return Padding(
                       padding: const EdgeInsets.only(bottom: 20),
-                      child: _buildFeedHeader());
-                }
-                int adj = index - 1;
-
-                // Row 1 (when searching) → search results panel
-                if (showSearch) {
-                  if (adj == 0) {
-                    return _buildUserSearchResults(searchState);
+                      child: _buildFeedHeader(),
+                    );
                   }
-                  adj--;
-                }
+                  int adj = index - 1;
 
-                if (adj < _filteredPosts.length) {
-                  final post = _filteredPosts[adj];
-                  final postId =
-                  post['id'] is int ? post['id'] as int : post.hashCode;
-                  final key =
-                  _postKeys.putIfAbsent(postId, () => GlobalKey());
-                  return RepaintBoundary(
-                      key: key, child: _buildPostCard(post));
-                }
-                return const SizedBox.shrink();
-              },
-            );
-          }),
+                  // Row 1 (when searching) → search results panel
+                  if (showSearch) {
+                    if (adj == 0) {
+                      return _buildUserSearchResults(searchState);
+                    }
+                    adj--;
+                  }
+
+                  if (adj < _filteredPosts.length) {
+                    final post = _filteredPosts[adj];
+                    final postId = post['id'] is int
+                        ? post['id'] as int
+                        : post.hashCode;
+                    final key = _postKeys.putIfAbsent(
+                      postId,
+                      () => GlobalKey(),
+                    );
+                    return RepaintBoundary(
+                      key: key,
+                      child: _buildPostCard(post),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              );
+            },
+          ),
 
           // ── Albums tab ─────────────────────────────────────────────────
           AlbumsView(
@@ -955,7 +1022,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             albums: _albums,
             onCreateAlbum: () => _showCreateAlbumDialog(),
             onDeleteAlbum: _deleteAlbum,
-            onEditAlbum: (album) => _showCreateAlbumDialog(existingAlbum: album),
+            onEditAlbum: (album) =>
+                _showCreateAlbumDialog(existingAlbum: album),
             onViewAlbum: (album) => _playAlbum(album, allAlbums: _albums),
             onShowDetails: _showAlbumDetailsDialog,
             isOwner: true,
@@ -984,8 +1052,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               child: CircularProgressIndicator(strokeWidth: 2.5, color: _kPink),
             ),
             const SizedBox(height: 10),
-            Text('Searching…',
-                style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            Text(
+              'Searching…',
+              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+            ),
           ],
         ),
       );
@@ -997,15 +1067,20 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         padding: const EdgeInsets.symmetric(vertical: 36),
         child: Column(
           children: [
-            Icon(Icons.person_search_outlined, size: 52, color: Colors.grey[400]),
+            Icon(
+              Icons.person_search_outlined,
+              size: 52,
+              color: Colors.grey[400],
+            ),
             const SizedBox(height: 14),
             Text(
               'No users found for\n"${widget.searchQuery}"',
               textAlign: TextAlign.center,
               style: TextStyle(
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  fontSize: 14,
-                  height: 1.5),
+                color: Theme.of(context).textTheme.bodyLarge?.color,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -1026,14 +1101,14 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               Text(
                 'People',
                 style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  color: Colors.white),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: _kPink.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -1041,9 +1116,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                 child: Text(
                   '${searchState.users.length}',
                   style: const TextStyle(
-                      fontSize: 11,
-                      color: _kPink,
-                      fontWeight: FontWeight.bold),
+                    fontSize: 11,
+                    color: _kPink,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -1057,24 +1133,24 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             username: user.username,
             avatar: user.avatar,
             postsCount: user.postsCount,
-              onTap: () {
-                final mockUser = MockUser(
-                  username: user.username,
-                  name: user.name,
-                  avatar: user.avatar,
-                  coverImage: '',
-                  isVerified: false,
-                  bio: '',
-                  type: 'public',
-                  country: '',
-                  state: '',
-                  city: '',
-                  gender: '',
-                );
-                // Clear search and go to profile properly
-                FocusScope.of(context).unfocus();
-                widget.onUserTap?.call(mockUser);
-              },
+            onTap: () {
+              final mockUser = MockUser(
+                username: user.username,
+                name: user.name,
+                avatar: user.avatar,
+                coverImage: '',
+                isVerified: false,
+                bio: '',
+                type: 'public',
+                country: '',
+                state: '',
+                city: '',
+                gender: '',
+              );
+              // Clear search and go to profile properly
+              FocusScope.of(context).unfocus();
+              widget.onUserTap?.call(mockUser);
+            },
           );
         }),
 
@@ -1089,35 +1165,45 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   // FEED HEADER (tab bar)
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildFeedHeader() {
-    return Row(children: [
-      Expanded(
+    return Row(
+      children: [
+        Expanded(
           child: _buildHeaderTab(
-              icon: Icons.web_stories,
-              label: context.tr.allPosts,
-              isActive: _selectedIndex == 0,
-              onTap: () => setState(() => _selectedIndex = 0))),
-      const SizedBox(width: 8),
-      Expanded(
+            icon: Icons.web_stories,
+            label: context.tr.allPosts,
+            isActive: _selectedIndex == 0,
+            onTap: () => setState(() => _selectedIndex = 0),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
           child: _buildHeaderTab(
-              icon: Icons.person_outline,
-              label: context.tr.myPosts,
-              isActive: _selectedIndex == 1,
-              onTap: () => setState(() => _selectedIndex = 1))),
-      const SizedBox(width: 8),
-      Expanded(
+            icon: Icons.person_outline,
+            label: context.tr.myPosts,
+            isActive: _selectedIndex == 1,
+            onTap: () => setState(() => _selectedIndex = 1),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
           child: _buildHeaderTab(
-              icon: Icons.bookmark_border,
-              label: context.tr.bookmarks,
-              isActive: _selectedIndex == 2,
-              onTap: () => setState(() => _selectedIndex = 2))),
-      const SizedBox(width: 8),
-      Expanded(
+            icon: Icons.bookmark_border,
+            label: context.tr.bookmarks,
+            isActive: _selectedIndex == 2,
+            onTap: () => setState(() => _selectedIndex = 2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
           child: _buildHeaderTab(
-              icon: Icons.add_circle_outline,
-              label: context.tr.createPost,
-              isActive: false,
-              onTap: _navigateToCreatePost)),
-    ]);
+            icon: Icons.add_circle_outline,
+            label: context.tr.createPost,
+            isActive: false,
+            onTap: _navigateToCreatePost,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildHeaderTab({
@@ -1138,18 +1224,24 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           color: isActive ? _kPink.withValues(alpha: 0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-              color: isActive ? _kPink : theme.dividerColor, width: 1.2),
+            color: isActive ? _kPink : theme.dividerColor,
+            width: 1.2,
+          ),
         ),
-        child: Column(children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 4),
-          Text(label,
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 4),
+            Text(
+              label,
               style: TextStyle(
-                  fontSize: 10,
-                  color: color,
-                  fontWeight:
-                  isActive ? FontWeight.w600 : FontWeight.normal)),
-        ]),
+                fontSize: 10,
+                color: color,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1161,128 +1253,118 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final theme = Theme.of(context);
     final author = _getAuthor(post);
     final postIdStr = post['id']?.toString() ?? '';
-    final avgRating = double.tryParse(
-      (post['average_rating'] ??
-          post['averageRating'] ??
-          0)
-          .toString(),
-    ) ??
+    final avgRating =
+        double.tryParse(
+          (post['average_rating'] ?? post['averageRating'] ?? 0).toString(),
+        ) ??
         0.0;
 
-    final totalRatings =
-        post['total_ratings'] ??
-            post['totalRatings'] ??
-            0;
+    final totalRatings = post['total_ratings'] ?? post['totalRatings'] ?? 0;
 
-
-    final commentCount = post['commentsCount'] ??
+    final commentCount =
+        post['commentsCount'] ??
         _countTopLevelComments(post['comments'] as List? ?? []);
-    final isLiked =
-    widget.readPosts.any((p) => p['id'] == post['id']);
-    final isBookmarked =
-    widget.bookmarkedPosts.any((p) => p['id'] == post['id']);
+    final isLiked = widget.readPosts.any((p) => p['id'] == post['id']);
+    final isBookmarked = widget.bookmarkedPosts.any(
+      (p) => p['id'] == post['id'],
+    );
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 8,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white10,
-        ),
+        border: Border.all(color: Colors.white10),
       ),
       child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ListTile(
-          contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          leading: GestureDetector(
-            onTap: () => widget.onUserTap?.call(author),
-            // child: _buildAvatar(author.avatar, radius: 22),
-            child: _buildAvatar(
-              post['avatar'] ?? '',
-              radius: 22,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
             ),
-
-          ),
-          title: GestureDetector(
-            onTap: () => widget.onUserTap?.call(author),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    // post['author'] ?? 'User',
-             post['author']?.toString().trim() ?? '',
-                    style: TextStyle(
-            fontSize: 24,
-            color: Theme.of(context).textTheme.bodyLarge?.color,
-            fontWeight: FontWeight.bold,
-          ),
+            leading: GestureDetector(
+              onTap: () => widget.onUserTap?.call(author),
+              // child: _buildAvatar(author.avatar, radius: 22),
+              child: _buildAvatar(post['avatar'] ?? '', radius: 22),
+            ),
+            title: GestureDetector(
+              onTap: () => widget.onUserTap?.call(author),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      // post['author'] ?? 'User',
+                      post['author']?.toString().trim() ?? '',
+                      style: TextStyle(
+                        fontSize: 24,
+                        color: Theme.of(context).textTheme.bodyLarge?.color,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                ),
-                if (post['verified'] == true || author.isVerified)
-                  const Padding(
-                    padding: EdgeInsets.only(left: 4),
-                    child: Icon(Icons.verified,
-                        size: 15, color: _kPink),
-                  ),
-              ],
-            ),
-          ),
-          subtitle: Text(
-            _formatDate(post['date']),
-            style: TextStyle(
-              color: Theme.of(context).hintColor,
-              fontSize: 12,
-            ),
-          ),
-          trailing: PopupMenuTheme(
-            data: PopupMenuThemeData(
-              color: const Color(0xFF14233D),
-              surfaceTintColor: Colors.transparent,
-              textStyle: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+                  if (post['verified'] == true || author.isVerified)
+                    const Padding(
+                      padding: EdgeInsets.only(left: 4),
+                      child: Icon(Icons.verified, size: 15, color: _kPink),
+                    ),
+                ],
               ),
             ),
-            child: Theme(
-              data: Theme.of(context).copyWith(
-                popupMenuTheme: PopupMenuThemeData(
-                  textStyle: TextStyle(
+            subtitle: Text(
+              _formatDate(post['date']),
+              style: TextStyle(
+                color: Theme.of(context).hintColor,
+                fontSize: 12,
+              ),
+            ),
+            trailing: PopupMenuTheme(
+              data: PopupMenuThemeData(
+                color: const Color(0xFF14233D),
+                surfaceTintColor: Colors.transparent,
+                textStyle: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              child: Theme(
+                data: Theme.of(context).copyWith(
+                  popupMenuTheme: PopupMenuThemeData(
+                    textStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                child: PopupMenuButton<String>(
+                  color: const Color(0xFF14233D),
+                  icon: Icon(
+                    Icons.more_vert,
                     color: Theme.of(context).brightness == Brightness.dark
                         ? Colors.white
                         : Colors.black,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
                   ),
-                ),
-              ),
-              child: PopupMenuButton<String>(
-                color: const Color(0xFF14233D),
-                icon: Icon(
-                  Icons.more_vert,
-                  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                onSelected: (val) {
-                  // existing code
-                },
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  onSelected: (val) {
+                    // existing code
+                  },
                   itemBuilder: (context) => [
-
                     const PopupMenuItem<String>(
                       value: 'share',
                       child: Row(
                         children: [
-                          Icon(Icons.share_outlined, size: 18, color: Colors.white),
+                          Icon(
+                            Icons.share_outlined,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                           SizedBox(width: 12),
                           Text(
                             'Share Post',
@@ -1296,7 +1378,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                       value: 'send_to_ozvault',
                       child: Row(
                         children: [
-                          Icon(Icons.download_outlined, size: 18, color: Colors.white),
+                          Icon(
+                            Icons.download_outlined,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                           SizedBox(width: 12),
                           Text(
                             'Send To OzVault',
@@ -1310,7 +1396,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                       value: 'playlist',
                       child: Row(
                         children: [
-                          Icon(Icons.playlist_add_outlined, size: 18, color: Colors.white),
+                          Icon(
+                            Icons.playlist_add_outlined,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                           SizedBox(width: 12),
                           Text(
                             'Add to Playlist',
@@ -1324,7 +1414,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                       value: 'bookmark',
                       child: Row(
                         children: [
-                          Icon(Icons.bookmark_border, size: 18, color: Colors.white),
+                          Icon(
+                            Icons.bookmark_border,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                           SizedBox(width: 12),
                           Text(
                             'Bookmark this post',
@@ -1339,7 +1433,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         value: 'unfollow',
                         child: Row(
                           children: [
-                            Icon(Icons.person_remove_outlined, size: 18, color: Colors.white),
+                            Icon(
+                              Icons.person_remove_outlined,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                             SizedBox(width: 12),
                             Text(
                               'Unfollow',
@@ -1354,7 +1452,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         value: 'block',
                         child: Row(
                           children: [
-                            Icon(Icons.block_outlined, size: 18, color: Colors.white),
+                            Icon(
+                              Icons.block_outlined,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                             SizedBox(width: 12),
                             Text(
                               'Block',
@@ -1369,7 +1471,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         value: 'report',
                         child: Row(
                           children: [
-                            Icon(Icons.flag_outlined, size: 18, color: Colors.white),
+                            Icon(
+                              Icons.flag_outlined,
+                              size: 18,
+                              color: Colors.white,
+                            ),
                             SizedBox(width: 12),
                             Text(
                               'Report',
@@ -1384,12 +1490,13 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         value: 'edit',
                         child: Row(
                           children: [
-                            Icon(Icons.edit_outlined, size: 18, color: Colors.white),
-                            SizedBox(width: 12),
-                            Text(
-                              'Edit',
-                              style: TextStyle(color: Colors.white),
+                            Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: Colors.white,
                             ),
+                            SizedBox(width: 12),
+                            Text('Edit', style: TextStyle(color: Colors.white)),
                           ],
                         ),
                       ),
@@ -1399,7 +1506,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: Colors.red,
+                            ),
                             SizedBox(width: 12),
                             Text(
                               'Delete',
@@ -1412,161 +1523,188 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         ),
                       ),
                   ],
+                ),
               ),
             ),
           ),
 
-        ),
-
-
-        // ── Title ────────────────────────────────────────────────────────
-        if (post['title'] != null && post['title'].toString().isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-            child: Text(
-              post['title'],
-              style: TextStyle(
+          // ── Title ────────────────────────────────────────────────────────
+          if (post['title'] != null && post['title'].toString().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+              child: Text(
+                post['title'],
+                style: TextStyle(
                   color: Theme.of(context).textTheme.bodyLarge?.color,
-                  fontWeight: FontWeight.bold, fontSize: 16),
-
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
             ),
-          ),
 
-        // ── Body text ────────────────────────────────────────────────────
-        if ((post['text'] ?? post['content']) != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Builder(builder: (_) {
-              final raw =
-              (post['text'] ?? post['content'] ?? '').toString();
-              if (_isHtmlContent(raw)) {
-                return Text(_stripHtml(raw),
-                    maxLines: 4, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(  color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,fontSize: 13, height: 1.5));
-              }
-              return Text(raw,
-                  maxLines: 4, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(  color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,fontSize: 13, height: 1.5));
-            }),
-          ),
-
-        // ── Media ─────────────────────────────────────────────────────────
-
-// ── Action bar ───────────────────────────────────────────────────────
-    // ── Media ─────────────────────────────────────────────────────────────
-    if (_isUnlocked(post))
-    ClipRRect(
-    borderRadius: BorderRadius.circular(12),
-    child: Stack(
-    children: [
-    ConstrainedBox(
-    constraints: const BoxConstraints(
-    minHeight: 180,
-    maxHeight: 500,
-    ),
-    child: SizedBox(
-    width: double.infinity,
-    child: _buildMediaPreview(post),
-    ),
-    ),
-    Positioned(
-    top: 10,
-    left: 10,
-    child: InkWell(
-    onTap: () => _showContentDetails(post),
-    child: Container(
-    padding: const EdgeInsets.all(6),
-    decoration: BoxDecoration(
-    color: Colors.black54,
-    borderRadius: BorderRadius.circular(20),
-    ),
-    child: const Icon(Icons.info_outline, color: Colors.white, size: 18),
-    ),
-    ),
-    ),
-    ],
-    ),
-    )
-    else
-    _buildLockedOverlay(context, post),
-
-// ── Action bar ───────────────────────────────────────────────────────
-    if (_isUnlocked(post))
-    Padding(
-    padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-    child: Row(
-    children: [
-    _buildActionButton(
-    icon: isLiked ? Icons.favorite : Icons.favorite_border,
-    color: isLiked ? _kPink : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
-    label: '${post['likeCount'] ?? 0}',
-    onTap: () => widget.onPostAction(post, 'Like'),
-    ),
-    _buildActionButton(
-    icon: Icons.chat_bubble_outline_rounded,
-    color: _expandedPostIds.contains(postIdStr)
-    ? _kPink
-        : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
-    label: '$commentCount',
-    onTap: () => _toggleComments(postIdStr),
-    ),
-    GestureDetector(
-    onTap: () => _showRatingDialog(post),
-    child: Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-    child: Row(
-    children: [
-    Icon(
-    Icons.star,
-    color: (post['user_rating'] != null && post['user_rating'] != 0)
-    ? Colors.amber
-        : Colors.grey,
-    size: 20,
-    ),
-    const SizedBox(width: 4),
-    Text(
-    avgRating > 0 ? avgRating.toStringAsFixed(1) : '0',
-    style: TextStyle(
-    color: Theme.of(context).textTheme.bodyMedium?.color,
-    fontWeight: FontWeight.w600,
-    fontSize: 12,
-    ),
-    ),
-    ],
-    ),
-    ),
-    ),
-    ],
-    ),
-    ),
-
-
-
-
-
-        // ── Comments section ─────────────────────────────────────────────
-        if (_expandedPostIds.contains(postIdStr))
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            child: CommentSection(
-              post: post,
-              currentUser: widget.currentUser,
-              users: widget.users,
-              onPostAction: (p, a, {extraData}) {
-                widget.onPostAction(p, a, extraData: extraData);
-                if (mounted) setState(() {});
-              },
+          // ── Body text ────────────────────────────────────────────────────
+          if ((post['text'] ?? post['content']) != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+              child: Builder(
+                builder: (_) {
+                  final raw = (post['text'] ?? post['content'] ?? '')
+                      .toString();
+                  if (_isHtmlContent(raw)) {
+                    return Text(
+                      _stripHtml(raw),
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                        fontSize: 13,
+                        height: 1.5,
+                      ),
+                    );
+                  }
+                  return Text(
+                    raw,
+                    maxLines: 4,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      fontSize: 13,
+                      height: 1.5,
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-      ]),
+
+          // ── Media ─────────────────────────────────────────────────────────
+
+          // ── Action bar ───────────────────────────────────────────────────────
+          // ── Media ─────────────────────────────────────────────────────────────
+          if (_isUnlocked(post))
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Stack(
+                children: [
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      minHeight: 180,
+                      maxHeight: 500,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: _buildMediaPreview(post),
+                    ),
+                  ),
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: InkWell(
+                      onTap: () => _showContentDetails(post),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.info_outline,
+                          color: Colors.white,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            _buildLockedOverlay(context, post),
+
+          // ── Action bar ───────────────────────────────────────────────────────
+          if (_isUnlocked(post))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+              child: Row(
+                children: [
+                  _buildActionButton(
+                    icon: isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked
+                        ? _kPink
+                        : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black87),
+                    label: '${post['likeCount'] ?? 0}',
+                    onTap: () => widget.onPostAction(post, 'Like'),
+                  ),
+                  _buildActionButton(
+                    icon: Icons.chat_bubble_outline_rounded,
+                    color: _expandedPostIds.contains(postIdStr)
+                        ? _kPink
+                        : (Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black87),
+                    label: '$commentCount',
+                    onTap: () => _toggleComments(postIdStr),
+                  ),
+                  GestureDetector(
+                    onTap: () => _showRatingDialog(post),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.star,
+                            color:
+                                (post['user_rating'] != null &&
+                                    post['user_rating'] != 0)
+                                ? Colors.amber
+                                : Colors.grey,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            avgRating > 0 ? avgRating.toStringAsFixed(1) : '0',
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.color,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Comments section ─────────────────────────────────────────────
+          if (_expandedPostIds.contains(postIdStr))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: CommentSection(
+                post: post,
+                currentUser: widget.currentUser,
+                users: widget.users,
+                onPostAction: (p, a, {extraData}) {
+                  widget.onPostAction(p, a, extraData: extraData);
+                  if (mounted) setState(() {});
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
-
-
 
   Widget _buildActionButton({
     required IconData icon,
@@ -1579,20 +1717,23 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, color: color, size: 21),
-          if (label.isNotEmpty) ...[
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: Theme.of(context).textTheme.bodyLarge?.color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 21),
+            if (label.isNotEmpty) ...[
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-            ),
-          ]
-        ]),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1603,15 +1744,12 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   Widget _buildMediaPreview(Map<String, dynamic> post) {
     final theme = Theme.of(context);
     final type = (post['type'] ?? '').toString();
-    final videoPath =
-    (post['video_url'] ?? post['filePath'] ?? '').toString();
-    final audioPath =
-    (post['audio_url'] ?? post['filePath'] ?? '').toString();
-    final imagePath =
-    (post['image'] ?? post['filePath'] ?? '').toString();
+    final videoPath = (post['video_url'] ?? post['filePath'] ?? '').toString();
+    final audioPath = (post['audio_url'] ?? post['filePath'] ?? '').toString();
+    final imagePath = (post['image'] ?? post['filePath'] ?? '').toString();
     final previewPath = (post['preview_url'] ?? '').toString();
-    final litPath =
-    (post['literature_url'] ?? post['filePath'] ?? '').toString();
+    final litPath = (post['literature_url'] ?? post['filePath'] ?? '')
+        .toString();
     final title = (post['title'] ?? 'Document').toString();
 
     // ── Video ─────────────────────────────────────────────────────────────
@@ -1648,27 +1786,38 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       if (imagePath.isEmpty) return _buildEmptyMedia();
       return GestureDetector(
         onTap: () => _openFullscreenImage(imagePath),
-        child: Stack(children: [
-          imagePath.startsWith('http')
-              ? Image.network(imagePath,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              errorBuilder: (_, __, ___) => _buildEmptyMedia())
-              : Image.file(File(imagePath),
-              fit: BoxFit.cover, width: double.infinity),
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.all(5),
-              decoration: BoxDecoration(
+        child: Stack(
+          children: [
+            imagePath.startsWith('http')
+                ? Image.network(
+                    imagePath,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                    errorBuilder: (_, __, ___) => _buildEmptyMedia(),
+                  )
+                : Image.file(
+                    File(imagePath),
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(8)),
-              child: const Icon(Icons.zoom_out_map,
-                  color: Colors.white, size: 16),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.zoom_out_map,
+                  color: Colors.white,
+                  size: 16,
+                ),
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       );
     }
 
@@ -1684,33 +1833,49 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             color: theme.cardColor,
             border: Border.all(color: theme.dividerColor),
           ),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.picture_as_pdf, size: 60, color: _kPink),
-            const SizedBox(height: 12),
-            Text(title,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.picture_as_pdf, size: 60, color: _kPink),
+              const SizedBox(height: 12),
+              Text(
+                title,
                 style: const TextStyle(
-                    fontWeight: FontWeight.bold, fontSize: 14),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
-              decoration: BoxDecoration(
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 9,
+                ),
+                decoration: BoxDecoration(
                   color: _kPink,
-                  borderRadius: BorderRadius.circular(20)),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.open_in_new, color: Colors.white, size: 15),
-                SizedBox(width: 6),
-                Text('Open Document',
-                    style: TextStyle(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.open_in_new, color: Colors.white, size: 15),
+                    SizedBox(width: 6),
+                    Text(
+                      'Open Document',
+                      style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 13)),
-              ]),
-            ),
-          ]),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -1724,109 +1889,178 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       width: double.infinity,
       color: Colors.grey[200],
       child: const Center(
-          child: Icon(Icons.image_not_supported_outlined,
-              size: 48, color: Colors.grey)),
+        child: Icon(
+          Icons.image_not_supported_outlined,
+          size: 48,
+          color: Colors.grey,
+        ),
+      ),
     );
   }
 
-  Widget _buildLockedOverlay(
-      BuildContext context,
-      Map<String, dynamic> post,
-      ) {
-    final paymentState = ref.watch(paymentViewModelProvider);
+  Widget _buildLockedOverlay(BuildContext context, Map<String, dynamic> post) {
     final theme = Theme.of(context);
+    final imagePath =
+        (post['image'] ?? post['preview_url'] ?? post['filePath'] ?? '')
+            .toString();
+    final hasPreview = imagePath.isNotEmpty && imagePath.startsWith('http');
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-      decoration: BoxDecoration(
-        color: theme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Stack(
         children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _kPink.withOpacity(.12),
-            ),
-            child: const Icon(
-              Icons.lock_outline_rounded,
-              size: 40,
-              color: _kPink,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            "Premium Content",
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Subscribe to unlock this content",
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.textTheme.bodyMedium?.color?.withOpacity(.7),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-            decoration: BoxDecoration(
-              color: _kPink.withOpacity(.12),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: _kPink, width: 1.2),
-            ),
-            child: Text(
-              "₹${post["price"] ?? "0"}",
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: _kPink,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: paymentState.isLoading
-                  ? null
-                  : () async {
-                await ref
-                    .read(paymentViewModelProvider.notifier)
-                    .buyPost(postId: post["id"]);
-              },
-              icon: paymentState.isLoading
-                  ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white),
-              )
-                  : const Icon(Icons.workspace_premium_rounded, color: Colors.white),
-              label: Text(
-                paymentState.isLoading ? "Processing..." : "Add to Cart",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
+          // ── Blurred background image ──────────────────────────────────
+          if (hasPreview)
+            SizedBox(
+              height: 320,
+              width: double.infinity,
+              child: ImageFiltered(
+                imageFilter: ui.ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                child: Image.network(
+                  imagePath,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  errorBuilder: (_, __, ___) =>
+                      Container(height: 320, color: theme.cardColor),
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _kPink,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: _kPink.withOpacity(0.6),
-                disabledForegroundColor: Colors.white70,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
+            )
+          else
+            Container(
+              height: 320,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
               ),
+            ),
+
+          // ── Dark overlay ──────────────────────────────────────────────
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.55),
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+
+          // ── Lock content ──────────────────────────────────────────────
+          Positioned.fill(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _kPink.withOpacity(.2),
+                  ),
+                  child: const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 36,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  "Premium Content",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  "Subscribe to unlock this content",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(.8),
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(.15),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white54, width: 1),
+                  ),
+                  child: Text(
+                    "₹${post["price"] ?? "0"}",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                     onPressed:
+                          ? null
+                          : () async {
+                        //await ref
+                          //  .read(paymentViewModelProvider.notifier)
+                          //  .buyPost(postId: post["id"]);
+
+                        await ref.refresh(cartProvider.future);
+
+                        if (mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const CartScreen(),
+                            ),
+                          );
+                        }
+                      },
+                      // icon: paymentState.isLoading
+                      //     ? const SizedBox(
+                      //         width: 16,
+                      //         height: 16,
+                      //         child: CircularProgressIndicator(
+                      //           strokeWidth: 2,
+                      //           color: Colors.white,
+                      //         ),
+                      //       )
+                      //     : const Icon(
+                      //         Icons.shopping_cart_outlined,
+                      //         color: Colors.white,
+                      //         size: 18,
+                      //       ),
+                      label: Text(
+                        //paymentState.isLoading
+                          //  ? "Processing..."
+                             "Add to Cart",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _kPink,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1835,49 +2069,57 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   }
 
   void _openFullscreenImage(String url) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(
-        backgroundColor: Colors.black,
-        appBar: AppBar(
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
           backgroundColor: Colors.black,
-          iconTheme: const IconThemeData(color: Colors.white),
-        ),
-        body: InteractiveViewer(
-          minScale: 0.5,
-          maxScale: 4.0,
-          child: Center(
-            child: url.startsWith('http')
-                ? Image.network(url,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Icon(
-                    Icons.broken_image_outlined,
-                    color: Colors.white,
-                    size: 64))
-                : Image.file(File(url), fit: BoxFit.contain),
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            iconTheme: const IconThemeData(color: Colors.white),
+          ),
+          body: InteractiveViewer(
+            minScale: 0.5,
+            maxScale: 4.0,
+            child: Center(
+              child: url.startsWith('http')
+                  ? Image.network(
+                      url,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => const Icon(
+                        Icons.broken_image_outlined,
+                        color: Colors.white,
+                        size: 64,
+                      ),
+                    )
+                  : Image.file(File(url), fit: BoxFit.contain),
+            ),
           ),
         ),
       ),
-    ));
+    );
   }
 
   void _openFullscreenPdf(String url, String title) {
-    Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => Scaffold(
-        appBar: AppBar(
-          title: Text(title, overflow: TextOverflow.ellipsis),
-          backgroundColor: _kPink,
-          foregroundColor: Colors.white,
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(
+            title: Text(title, overflow: TextOverflow.ellipsis),
+            backgroundColor: _kPink,
+            foregroundColor: Colors.white,
+          ),
+          body: url.startsWith('http')
+              ? SfPdfViewer.network(url)
+              : SfPdfViewer.file(File(url)),
         ),
-        body: url.startsWith('http')
-            ? SfPdfViewer.network(url)
-            : SfPdfViewer.file(File(url)),
       ),
-    ));
+    );
   }
 
   // ── Avatar helper ──────────────────────────────────────────────────────────
   Widget _buildAvatar(String avatar, {double radius = 20}) {
-    if (avatar.isNotEmpty && (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
+    if (avatar.isNotEmpty &&
+        (avatar.startsWith('http://') || avatar.startsWith('https://'))) {
       return CircleAvatar(
         radius: radius,
         backgroundImage: NetworkImage(avatar),
@@ -1891,6 +2133,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       child: Icon(Icons.person, color: _kPink, size: radius),
     );
   }
+
   // Widget _buildAvatar(String avatar, {double radius = 20}) {
   //   if (avatar.isNotEmpty && avatar.startsWith('http')) {
   //     return CircleAvatar(
@@ -1906,11 +2149,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   //   );
   // }
 
-
   // ── Shimmer / empty ────────────────────────────────────────────────────────
   Widget _buildShimmerLoader() {
-    return const Center(
-        child: CircularProgressIndicator(color: _kPink));
+    return const Center(child: CircularProgressIndicator(color: _kPink));
   }
 }
 
@@ -1942,13 +2183,13 @@ class _SearchUserCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          padding:
-          const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: theme.cardColor,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-                color: theme.dividerColor.withValues(alpha: 0.5)),
+              color: theme.dividerColor.withValues(alpha: 0.5),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.03),
@@ -1957,68 +2198,90 @@ class _SearchUserCard extends StatelessWidget {
               ),
             ],
           ),
-          child: Row(children: [
-            // Avatar with pink ring
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: _kPink.withValues(alpha: 0.35), width: 2),
+          child: Row(
+            children: [
+              // Avatar with pink ring
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _kPink.withValues(alpha: 0.35),
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 24,
+                  backgroundColor: _kPink.withValues(alpha: 0.1),
+                  backgroundImage: avatar.isNotEmpty
+                      ? NetworkImage(avatar)
+                      : null,
+                  child: avatar.isEmpty
+                      ? Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: const TextStyle(
+                            color: _kPink,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                          ),
+                        )
+                      : null,
+                ),
               ),
-              child: CircleAvatar(
-                radius: 24,
-                backgroundColor: _kPink.withValues(alpha: 0.1),
-                backgroundImage:
-                avatar.isNotEmpty ? NetworkImage(avatar) : null,
-                child: avatar.isEmpty
-                    ? Text(
-                  name.isNotEmpty ? name[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                      color: _kPink,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18),
-                )
-                    : null,
-              ),
-            ),
 
-            const SizedBox(width: 14),
+              const SizedBox(width: 14),
 
-            // Name / username / post count
-            Expanded(
-              child: Column(
+              // Name / username / post count
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 14),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      name,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 2),
-                    Text('@$username',
-                        style: TextStyle(
-                            fontSize: 12, color: theme.hintColor)),
+                    Text(
+                      '@$username',
+                      style: TextStyle(fontSize: 12, color: theme.hintColor),
+                    ),
                     if (postsCount > 0)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
-                        child: Row(children: [
-                          Icon(Icons.grid_view_rounded,
-                              size: 11, color: theme.hintColor),
-                          const SizedBox(width: 3),
-                          Text(
-                            '$postsCount post${postsCount == 1 ? '' : 's'}',
-                            style: TextStyle(
-                                fontSize: 11, color: theme.hintColor),
-                          ),
-                        ]),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.grid_view_rounded,
+                              size: 11,
+                              color: theme.hintColor,
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              '$postsCount post${postsCount == 1 ? '' : 's'}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.hintColor,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                  ]),
-            ),
+                  ],
+                ),
+              ),
 
-            // Tap indicator
-            Icon(Icons.arrow_forward_ios_rounded,
-                size: 15, color: theme.hintColor),
-          ]),
+              // Tap indicator
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: theme.hintColor,
+              ),
+            ],
+          ),
         ),
       ),
     );

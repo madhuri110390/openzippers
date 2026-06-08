@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../helpers/translations.dart';
+import '../providers/cart_provider.dart';
 
-class CartScreen extends StatefulWidget {
+class CartScreen extends ConsumerStatefulWidget {
   final ValueNotifier<List<Map<String, dynamic>>>? cartItemsNotifier;
   final Function(int)? onIncrement;
   final Function(int)? onDecrement;
@@ -20,10 +22,10 @@ class CartScreen extends StatefulWidget {
   });
 
   @override
-  State<CartScreen> createState() => _CartScreenState();
+  ConsumerState<CartScreen> createState() => _CartScreenState();
 }
 
-class _CartScreenState extends State<CartScreen> {
+class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isProcessing = false;
   final Map<int, bool> _itemAvailability = {};
   bool _hasCheckedAvailability = false;
@@ -297,7 +299,7 @@ class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+    final cartAsync = ref.watch(cartProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(context.tr.myCart, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDB2777))),

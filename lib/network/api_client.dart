@@ -3,6 +3,7 @@ import 'package:dio/dio.dart' hide Headers;
 import 'package:retrofit/retrofit.dart';
 import '../models/album_response.dart';
 import '../models/block_response.dart';
+import '../models/cart_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
 import '../models/delete_post_response.dart';
@@ -277,12 +278,12 @@ abstract class ApiClient {
   Future<EmailVerificationResponse> sendVerificationEmail();
 
   // Paid Post Checkout
-  @POST("zippfans/payments/post/checkout")
-  @Headers(<String, dynamic>{
-    "Accept": "application/json",
-  })
-  Future<PostCheckoutResponse> createPostCheckout(
-      @Body() Map<String, dynamic> body,);
+  // @POST("zippfans/payments/post/checkout")
+  // @Headers(<String, dynamic>{
+  //   "Accept": "application/json",
+  // })
+  // Future<PostCheckoutResponse> createPostCheckout(
+  //     @Body() Map<String, dynamic> body,);
 
 
   @GET("zippfans/albums")
@@ -295,5 +296,9 @@ abstract class ApiClient {
   Future<IndividualAlbumResponse> getIndividualAlbums({
     @Path("id") required int id,
   });
-
+  @GET("zippfans/payments/cart")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<CartResponse> getCart();
 }
