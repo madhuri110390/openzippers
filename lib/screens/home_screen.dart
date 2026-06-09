@@ -11,6 +11,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/translations.dart';
 import 'package:sqflite/sqflite.dart';
 import '../network/api_client.dart';
+import '../providers/cart_provider.dart';
 import '../providers/rating_provider.dart';
 import '../viewmodels/comment_viewmodel.dart';
 import '../viewmodels/search_viewmodel.dart';
@@ -2214,12 +2215,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         return;
       }
 
-      final currentCart = _cartItemsNotifier.value;
-      final postTitle = post['title']?.toString() ?? '';
-      final postAuthor = post['author']?.toString() ?? '';
-      final alreadyInCart = currentCart.any((item) =>
-      item['title']?.toString() == postTitle &&
-          item['author']?.toString() == postAuthor);
+      // ── Duplicate check against cartProvider (API-based) ──
+      final cartAsync = ref.read(cartProvider);
+      final postId = post['id']?.toString() ?? '';
+
+      final alreadyInCart = cartAsync.whenOrNull(
+        data: (response) {
+          final items = response.data.data.items;
+          return items.any((item) => item.postId.toString() == postId);
+        },
+      ) ?? false;
 
       if (alreadyInCart) {
         if (mounted) {
@@ -2234,12 +2239,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       await _dbHelper.addToCart(post, currentUser.username);
       final updatedCart = await _dbHelper.getCartItems(currentUser.username);
 
+      // Refresh cartProvider so cart screen shows updated data
+      ref.invalidate(cartProvider);
+
       if (mounted) {
         setState(() {
           _cartItemsNotifier.value = updatedCart;
         });
-        _addNotification('cart', context.tr.itemAddedToCart,
-            '${post['title']} has been added to your cart');
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(context.tr.itemAddedToCart)));
       }

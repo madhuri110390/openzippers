@@ -4,6 +4,7 @@ import 'package:retrofit/retrofit.dart';
 import '../models/album_response.dart';
 import '../models/block_response.dart';
 import '../models/cart_response.dart';
+import '../models/wallet_payment_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
 import '../models/delete_post_response.dart';
@@ -296,9 +297,16 @@ abstract class ApiClient {
   Future<IndividualAlbumResponse> getIndividualAlbums({
     @Path("id") required int id,
   });
+
+  //get item of cart
   @GET("zippfans/payments/cart")
   @Headers(<String, dynamic>{
     "Accept": "application/json",
   })
   Future<CartResponse> getCart();
+
+  //checkout cart
+  @POST("zippfans/payments/wallet")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<WalletPaymentResponse> walletPayment(@Body() Map<String, dynamic> body);
 }

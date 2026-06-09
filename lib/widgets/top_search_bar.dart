@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/cart_provider.dart';
 import '../screens/cart_screen.dart';
 import '../screens/notifications_screen.dart';
 import '../models/mock_data.dart';
@@ -216,31 +217,21 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                     tooltip: context.tr.createPost,
                     onPressed: widget.onCreateTap,
                   ),
-                ValueListenableBuilder<List<Map<String, dynamic>>>(
-                  valueListenable:
-                  widget.cartItemsNotifier ?? ValueNotifier([]),
-                  builder: (context, cartItems, _) {
-                    final count = cartItems.fold(
-                        0,
-                            (sum, item) =>
-                        sum + (item['quantity'] as int? ?? 1));
+                Consumer(
+                  builder: (context, ref, _) {
+                    final cartAsync = ref.watch(cartProvider);
+                    final count = cartAsync.whenOrNull(
+                      data: (response) => response.data.data.itemCount,
+                    ) ?? 0;
                     return _BadgedIconButton(
                       icon: Icons.shopping_cart_outlined,
                       badgeCount: count,
                       isDark: isDark,
                       onPressed: () {
-                        if (widget.cartItemsNotifier == null) return;
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => CartScreen(
-                              cartItemsNotifier: widget.cartItemsNotifier,
-                              onIncrement: widget.onIncrementCart,
-                              onDecrement: widget.onDecrementCart,
-                              onRemove: widget.onRemoveCart,
-                              validateItemExists:
-                              widget.validateCartItemExists,
-                            ),
+                            builder: (context) => const CartScreen(),
                           ),
                         );
                       },

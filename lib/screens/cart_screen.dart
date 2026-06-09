@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import '../helpers/translations.dart';
 import '../providers/cart_provider.dart';
 import '../models/cart_response.dart';
+import '../providers/wallet_payment_provider.dart';
 
 const _kPink = Color(0xFFDB2777);
 const _kDarkBg = Color(0xFF0D1B2E);
@@ -66,59 +68,65 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   }
 
   // ── Payment ────────────────────────────────────────────────────────────────
-  Future<void> _processPayment(List<Map<String, dynamic>> cartItems) async {
+  Future<void> _processPayment(List<Map<String, dynamic>> items) async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
 
-    List<Map<String, dynamic>> available = List.from(cartItems);
+    try {
+      final cartAsync = ref.read(cartProvider);
+      final cartItems = cartAsync.whenOrNull(
+        data: (response) => response.data.data.items,
+      ) ?? [];
 
-    if (widget.validateItemExists != null) {
-      await _checkItemAvailability(cartItems);
-      available = [
-        for (int i = 0; i < cartItems.length; i++)
-          if (_itemAvailability[i] == true) cartItems[i],
-      ];
-      if (available.isEmpty) {
+      if (cartItems.isEmpty) {
+        setState(() => _isProcessing = false);
+        return;
+      }
+
+      bool allSuccess = true;
+      String? lastError;
+
+      // Pay for each item individually
+      for (final item in cartItems) {
+        await ref.read(walletPaymentProvider.notifier).pay(postId: item.postId);
+        final payState = ref.read(walletPaymentProvider);
+        if (!payState.success) {
+          allSuccess = false;
+          lastError = payState.error;
+          break;
+        }
+        ref.read(walletPaymentProvider.notifier).reset();
+      }
+
+      if (allSuccess) {
+        // Refresh cart
+        ref.invalidate(cartProvider);
+        setState(() {
+          _isProcessing = false;
+          _paymentCompleted = true;
+        });
+        _showOrderConfirmation(
+          items,
+          items.fold(0.0, (sum, i) => sum + _parsePrice(i['price'])),
+        );
+      } else {
         setState(() => _isProcessing = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(context.tr.allItemsNoLongerAvailable),
+            content: Text('Payment failed: ${lastError ?? 'Unknown error'}'),
             backgroundColor: _kPink,
           ));
         }
-        return;
+      }
+    } catch (e) {
+      setState(() => _isProcessing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: _kPink,
+        ));
       }
     }
-
-    await Future.delayed(const Duration(seconds: 1));
-    final total = _calculateTotal(available);
-
-    // Remove purchased items
-    if (widget.cartItemsNotifier != null && widget.onRemove != null) {
-      final keys = {for (var i in available) '${i['title']}_${i['author']}'};
-      int removed = 0;
-      while (removed < available.length) {
-        final snap = List<Map<String, dynamic>>.from(widget.cartItemsNotifier!.value);
-        bool found = false;
-        for (int i = 0; i < snap.length; i++) {
-          if (keys.contains('${snap[i]['title']}_${snap[i]['author']}')) {
-            widget.onRemove!(i);
-            removed++;
-            found = true;
-            break;
-          }
-        }
-        if (!found) break;
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-    }
-
-    setState(() {
-      _isProcessing = false;
-      _paymentCompleted = true;
-    });
-
-    _showOrderConfirmation(available, total);
   }
 
   void _showOrderConfirmation(List<Map<String, dynamic>> items, double total) {
