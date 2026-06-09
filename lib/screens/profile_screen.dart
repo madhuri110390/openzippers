@@ -8,11 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/location_models.dart';
 import '../models/rating_response.dart';
+import '../providers/connections_provider.dart';
 import '../providers/delete_post_provider.dart';
 import '../providers/rating_provider.dart';
 import '../viewmodels/delete_post_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
-import '../viewmodels/register_view_model.dart';
+import '../viewmodels/register_view_model.dart' hide dioProvider;
 import 'package:openzippers/screens/subscriptions_page.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
@@ -113,6 +114,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   List<Map<String, dynamic>> _albums = [];
   final Set<String> _likedPostIds = {};
   final Set<String> _failedMediaUrls = {};
+  String _followerCount = "0";
+  String _followingCount = "0";
 
   MockUser? _localUserOverride;
 
@@ -161,6 +164,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _fetchLoggedInUserDetails();
     _refreshUserData();
     Future.delayed(const Duration(seconds: 2), _loadPostsFromApi);
+    _fetchConnectionCounts();
   }
 
   @override
@@ -232,7 +236,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
-
+  Future<void> _fetchConnectionCounts() async {
+    try {
+      final username = effectiveUser.username;
+      if (username.isEmpty) return;
+      final response = await ref.read(
+        connectionsProvider(username).future,
+      );
+      if (!mounted) return;
+      setState(() {
+        _followerCount = response.data.counts.followers.toString();
+        _followingCount = response.data.counts.following.toString();
+      });
+    } catch (e) {
+      debugPrint('_fetchConnectionCounts error: $e');
+      if (mounted) setState(() {
+        _followerCount = widget.followerCount;
+        _followingCount = widget.followingCount;
+      });
+    }
+  }
   Future<void> _resolveLocationsUpdates(int? cId, int? sId, int? cityId) async {
     if (cId == null) return;
     try {
@@ -322,6 +345,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           });
           _resolveLocationsUpdates(user.countryId, user.stateId, user.cityId);
           _loadAlbums();
+          _fetchConnectionCounts();
         }
       }
     } catch (e) {
@@ -966,9 +990,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       Padding(
         padding: EdgeInsets.symmetric(horizontal: isSmallScreen ? 12 : 24),
         child: Row(children: [
-          Expanded(child: _buildStatCard(theme, Icons.person_outline, widget.followerCount, context.tr.followers.toUpperCase(), const Color(0xFFDB2777), isSmallScreen)),
+          Expanded(child: _buildStatCard(theme, Icons.person_outline, _followerCount, context.tr.followers.toUpperCase(), const Color(0xFFDB2777), isSmallScreen)),
           SizedBox(width: isSmallScreen ? 8 : 12),
-          Expanded(child: _buildStatCard(theme, Icons.group_outlined, widget.followingCount, context.tr.following.toUpperCase(), const Color(0xFF3B82F6), isSmallScreen)),
+          Expanded(child: _buildStatCard(theme, Icons.group_outlined, _followingCount, context.tr.following.toUpperCase(), const Color(0xFF3B82F6), isSmallScreen)),
           SizedBox(width: isSmallScreen ? 8 : 12),
           Expanded(child: _buildStatCard(theme, Icons.card_giftcard_outlined, widget.subscriberCount, context.tr.subscribers.toUpperCase(), const Color(0xFFA855F7), isSmallScreen, onTap: () {
             Navigator.of(context).push(MaterialPageRoute(builder: (context) => SubscriptionsPage(currentUser: widget.currentUser)));
