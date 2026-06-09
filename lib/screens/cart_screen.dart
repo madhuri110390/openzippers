@@ -4,6 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 import '../helpers/translations.dart';
 import '../providers/cart_provider.dart';
+import '../models/cart_response.dart';
+
+const _kPink = Color(0xFFDB2777);
+const _kDarkBg = Color(0xFF0D1B2E);
+const _kCardBg = Color(0xFF14233D);
+const _kCardBorder = Color(0xFF1E3050);
 
 class CartScreen extends ConsumerStatefulWidget {
   final ValueNotifier<List<Map<String, dynamic>>>? cartItemsNotifier;
@@ -13,7 +19,7 @@ class CartScreen extends ConsumerStatefulWidget {
   final Future<bool> Function(Map<String, dynamic>)? validateItemExists;
 
   const CartScreen({
-    super.key, 
+    super.key,
     this.cartItemsNotifier,
     this.onIncrement,
     this.onDecrement,
@@ -32,259 +38,79 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   int _lastCartItemCount = 0;
   bool _paymentCompleted = false;
 
-  double _calculateTotal(List<Map<String, dynamic>> cartItems) {
-    double total = 0.0;
-    for (var item in cartItems) {
-      final priceValue = item['price'];
-      double price = 0.0;
-      
-
-      if (priceValue == null) {
-        price = 0.0;
-      } else if (priceValue is num) {
-
-        price = priceValue.toDouble();
-      } else {
-
-        final priceStr = priceValue.toString().trim().toLowerCase();
-        
-
-        if (priceStr == 'free' || priceStr.isEmpty) {
-          price = 0.0;
-        } else {
-
-          final cleanPrice = priceStr.replaceAll(RegExp(r'[^\d.]'), '');
-          if (cleanPrice.isNotEmpty) {
-            price = double.tryParse(cleanPrice) ?? 0.0;
-          }
-        }
-      }
-      
-      final quantity = item['quantity'] as int? ?? 1;
-      total += price * quantity;
-    }
-    return total;
+  // ── Price helpers ──────────────────────────────────────────────────────────
+  double _parsePrice(dynamic priceValue) {
+    if (priceValue == null) return 0.0;
+    if (priceValue is num) return priceValue.toDouble();
+    final s = priceValue.toString().trim().toLowerCase();
+    if (s == 'free' || s.isEmpty) return 0.0;
+    final clean = s.replaceAll(RegExp(r'[^\d.]'), '');
+    return double.tryParse(clean) ?? 0.0;
   }
 
-  void _showOrderConfirmation(List<Map<String, dynamic>> cartItems, double total) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDB2777).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_circle,
-                    color: Color(0xFFDB2777),
-                    size: 50,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  context.tr.orderPlaced,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFDB2777),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  context.tr.orderPlacedSuccess,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  "Total: \$${total.toStringAsFixed(2)}",
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFFDB2777),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDB2777),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      context.tr.ok,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+  double _calculateTotal(List<Map<String, dynamic>> items) {
+    return items.fold(0.0, (sum, item) {
+      final qty = (item['quantity'] as int?) ?? 1;
+      return sum + _parsePrice(item['price']) * qty;
+    });
   }
 
-  Future<void> _checkItemAvailability(List<Map<String, dynamic>> cartItems) async {
+  // ── Availability ───────────────────────────────────────────────────────────
+  Future<void> _checkItemAvailability(List<Map<String, dynamic>> items) async {
     if (widget.validateItemExists == null) return;
     _itemAvailability.clear();
-    for (int i = 0; i < cartItems.length; i++) {
-      final exists = await widget.validateItemExists!(cartItems[i]);
-      _itemAvailability[i] = exists;
+    for (int i = 0; i < items.length; i++) {
+      _itemAvailability[i] = await widget.validateItemExists!(items[i]);
     }
-    setState(() {
-      _hasCheckedAvailability = true;
-    });
+    if (mounted) setState(() => _hasCheckedAvailability = true);
   }
 
+  // ── Payment ────────────────────────────────────────────────────────────────
   Future<void> _processPayment(List<Map<String, dynamic>> cartItems) async {
     if (_isProcessing) return;
-    
-    setState(() {
-      _isProcessing = true;
-    });
-    
-    // Check availability before processing payment
-    List<Map<String, dynamic>> availableItems = List.from(cartItems);
-    int unavailableCount = 0;
-    
+    setState(() => _isProcessing = true);
+
+    List<Map<String, dynamic>> available = List.from(cartItems);
+
     if (widget.validateItemExists != null) {
       await _checkItemAvailability(cartItems);
-      
-      // Filter out unavailable items - keep only available ones
-      availableItems = [];
-      final unavailableItems = <int>[];
-      
-      for (int i = 0; i < cartItems.length; i++) {
-        if (_itemAvailability[i] == true) {
-          availableItems.add(cartItems[i]);
-        } else {
-          unavailableItems.add(i);
-        }
-      }
-      
-      unavailableCount = unavailableItems.length;
-      
-      // If no items are available, show error and return
-      if (availableItems.isEmpty) {
-        setState(() {
-          _isProcessing = false;
-        });
+      available = [
+        for (int i = 0; i < cartItems.length; i++)
+          if (_itemAvailability[i] == true) cartItems[i],
+      ];
+      if (available.isEmpty) {
+        setState(() => _isProcessing = false);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                unavailableCount == 1
-                    ? context.tr.itemNoLongerAvailable
-                    : context.tr.allItemsNoLongerAvailable,
-              ),
-              backgroundColor: const Color(0xFFDB2777),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(context.tr.allItemsNoLongerAvailable),
+            backgroundColor: _kPink,
+          ));
         }
         return;
       }
-      
-      // If some items are unavailable, proceed with payment for available items
-      // Payment will proceed even if user didn't remove unavailable items manually
-      // No toast message shown - payment proceeds silently for available items
     }
 
-    // Proceed with payment for available items only
-    // This happens regardless of whether unavailable items exist in cart
-    // Simulate payment processing
     await Future.delayed(const Duration(seconds: 1));
+    final total = _calculateTotal(available);
 
-    // Calculate total only for available items
-    final total = _calculateTotal(availableItems);
-    
-    // Remove only available items from cart and database after successful payment
-    // Keep unavailable items in cart so user can see and remove them manually
+    // Remove purchased items
     if (widget.cartItemsNotifier != null && widget.onRemove != null) {
-      final currentCart = List<Map<String, dynamic>>.from(widget.cartItemsNotifier!.value);
-      
-      // Create a set of available items for lookup (using title + author as unique identifier)
-      final availableItemsSet = <String>{};
-      for (var item in availableItems) {
-        final key = '${item['title']}_${item['author']}';
-        availableItemsSet.add(key);
-      }
-      
-      // Remove available items from database one by one
-      // Since onRemove reloads cart, we need to find items by their unique key each time
-      int removedCount = 0;
-      while (removedCount < availableItems.length) {
-        final currentCartSnapshot = List<Map<String, dynamic>>.from(widget.cartItemsNotifier!.value);
-        bool foundAndRemoved = false;
-        
-        // Find first available item in current cart and remove it
-        for (int i = 0; i < currentCartSnapshot.length; i++) {
-          final item = currentCartSnapshot[i];
-          final key = '${item['title']}_${item['author']}';
-          if (availableItemsSet.contains(key)) {
+      final keys = {for (var i in available) '${i['title']}_${i['author']}'};
+      int removed = 0;
+      while (removed < available.length) {
+        final snap = List<Map<String, dynamic>>.from(widget.cartItemsNotifier!.value);
+        bool found = false;
+        for (int i = 0; i < snap.length; i++) {
+          if (keys.contains('${snap[i]['title']}_${snap[i]['author']}')) {
             widget.onRemove!(i);
-            removedCount++;
-            foundAndRemoved = true;
-            break; // Break and reload cart for next iteration
+            removed++;
+            found = true;
+            break;
           }
         }
-        
-        // If no item found, break to avoid infinite loop
-        if (!foundAndRemoved) break;
-        
-        // Wait a bit for database update to complete
+        if (!found) break;
         await Future.delayed(const Duration(milliseconds: 100));
       }
-      
-      // Final update to ensure UI is in sync
-      final finalCart = List<Map<String, dynamic>>.from(widget.cartItemsNotifier!.value);
-      final remainingItems = finalCart.where((item) {
-        final key = '${item['title']}_${item['author']}';
-        return !availableItemsSet.contains(key);
-      }).toList();
-      widget.cartItemsNotifier!.value = remainingItems;
-    } else if (widget.cartItemsNotifier != null) {
-      // Fallback: just update notifier if onRemove callback not available
-      final currentCart = List<Map<String, dynamic>>.from(widget.cartItemsNotifier!.value);
-      final availableItemsSet = <String>{};
-      for (var item in availableItems) {
-        final key = '${item['title']}_${item['author']}';
-        availableItemsSet.add(key);
-      }
-      final remainingItems = currentCart.where((item) {
-        final key = '${item['title']}_${item['author']}';
-        return !availableItemsSet.contains(key);
-      }).toList();
-      widget.cartItemsNotifier!.value = remainingItems;
     }
 
     setState(() {
@@ -292,687 +118,554 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       _paymentCompleted = true;
     });
 
-
-    _showOrderConfirmation(availableItems, total);
+    _showOrderConfirmation(available, total);
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cartAsync = ref.watch(cartProvider);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(context.tr.myCart, style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFDB2777))),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: const Color(0xFFDB2777)),
-          onPressed: () => Navigator.pop(context),
+  void _showOrderConfirmation(List<Map<String, dynamic>> items, double total) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: _kCardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: _kPink.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.check_circle, color: _kPink, size: 44),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Order Placed!',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: _kPink,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Your order has been placed successfully.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Total: \$${total.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _kPink,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    Navigator.of(context).pop();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kPink,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-      body: ValueListenableBuilder<List<Map<String, dynamic>>>(
-        valueListenable: widget.cartItemsNotifier ?? ValueNotifier([]),
-        builder: (context, cartItems, child) {
+    );
+  }
 
-          if (cartItems.length != _lastCartItemCount) {
+  // ── Image helper ───────────────────────────────────────────────────────────
+  DecorationImage? _getImageProvider(Map<String, dynamic> item) {
+    final cover = item['coverPath']?.toString() ?? '';
+    if (cover.isNotEmpty) {
+      return DecorationImage(image: FileImage(File(cover)), fit: BoxFit.cover);
+    }
+    final img = item['image']?.toString() ?? '';
+    if (img.isNotEmpty) {
+      if (img.startsWith('http')) {
+        return DecorationImage(image: NetworkImage(img), fit: BoxFit.cover);
+      }
+      return DecorationImage(image: AssetImage(img), fit: BoxFit.cover);
+    }
+    final fp = item['filePath']?.toString() ?? '';
+    if (fp.isNotEmpty && item['type'] == 'Image') {
+      return DecorationImage(image: FileImage(File(fp)), fit: BoxFit.cover);
+    }
+    return null;
+  }
 
-            if (_paymentCompleted && cartItems.length < _lastCartItemCount) {
+  IconData _typeIcon(String? type) {
+    switch (type) {
+      case 'Video':
+      case 'Reel':
+        return Icons.videocam_rounded;
+      case 'Song':
+      case 'Audio':
+        return Icons.music_note_rounded;
+      case 'Literature':
+      case 'PDF':
+        return Icons.picture_as_pdf_rounded;
+      default:
+        return Icons.image_rounded;
+    }
+  }
 
-              _lastCartItemCount = cartItems.length;
-            } else {
+  // ── CartItem → Map helper ──────────────────────────────────────────────────
+  Map<String, dynamic> _cartItemToMap(CartItem item) {
+    return {
+      'id': item.id,
+      'post_id': item.postId,
+      'title': item.title,
+      'price': item.price,
+      'author': item.authorName,
+      'image': item.authorAvatar, // avatar used as thumbnail
+    };
+  }
 
-              _lastCartItemCount = cartItems.length;
-              _hasCheckedAvailability = false;
-              _itemAvailability.clear();
-              _paymentCompleted = false;
-            }
-          }
-          
+  // ══════════════════════════════════════════════════════════════════════════
+  // BUILD
+  // ══════════════════════════════════════════════════════════════════════════
+  @override
+  Widget build(BuildContext context) {
+    final cartAsync = ref.watch(cartProvider);
 
-          if (widget.validateItemExists != null && 
-              !_hasCheckedAvailability && 
-              cartItems.isNotEmpty &&
-              !_paymentCompleted) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _checkItemAvailability(cartItems);
-            });
-          }
-          
-          final total = _calculateTotal(cartItems);
-          
-          return cartItems.isEmpty 
-            ? Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                     Container(
-                       padding: const EdgeInsets.all(24),
-                       decoration: BoxDecoration(
-                         color: const Color(0xFFDB2777).withOpacity(0.1),
-                         shape: BoxShape.circle,
-                       ),
-                       child: const Icon(
-                         Icons.shopping_cart_outlined, 
-                         size: 80, 
-                         color: Color(0xFFDB2777),
-                       ),
-                     ),
-                     const SizedBox(height: 24),
-                     Text(
-                       context.tr.noItemsInCart,
-                       style: TextStyle(
-                         fontSize: 22, 
-                         fontWeight: FontWeight.bold,
-                         color: theme.textTheme.titleLarge?.color ?? const Color(0xFFDB2777),
-                       ),
-                     ),
-                     const SizedBox(height: 12),
-                     Text(
-                       context.tr.addItemsToCart,
-                       style: TextStyle(
-                         fontSize: 16, 
-                         color: theme.hintColor,
-                       ),
-                       textAlign: TextAlign.center,
-                     ),
-                  ],
-                ),
-              )
-            : ListView.builder(
-                itemCount: cartItems.length,
-                itemBuilder: (context, index) {
-                  final item = cartItems[index];
-                  final isAvailable = _itemAvailability[index] ?? true;
-                  
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Stack(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: !isAvailable 
-                                ? Colors.grey.withOpacity(0.05) 
-                                : theme.cardColor ?? Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: !isAvailable 
-                                  ? Colors.grey.withOpacity(0.3) 
-                                  : const Color(0xFFDB2777).withOpacity(0.2),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.05),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: Opacity(
-                            opacity: !isAvailable ? 0.5 : 1.0,
-                            child: Row(
-                              children: [
-                                 if (item['type'] == 'Video' || item['type'] == 'Reel')
-                                   _buildVideoThumbnail(item)
-                                 else
-                                   Container(
-                                     width: 80,
-                                     height: 80,
-                                     decoration: BoxDecoration(
-                                       color: Colors.grey[200],
-                                       borderRadius: BorderRadius.circular(12),
-                                       image: _getImageProvider(item),
-                                     ),
-                                     child: _getImageProvider(item) == null
-                                          ? _buildFallbackIcon(item)
-                                          : null,
-                                   ),
-                                 const SizedBox(width: 16),
-                                 // Details
-                                 Expanded(
-                                   child: Column(
-                                     crossAxisAlignment: CrossAxisAlignment.start,
-                                     children: [
-                                       Text(
-                                         item['title'] ?? 'Unknown Item',
-                                         style: TextStyle(
-                                           fontWeight: FontWeight.bold,
-                                           fontSize: 16,
-                                           decoration: !isAvailable ? TextDecoration.lineThrough : null,
-                                           color: !isAvailable 
-                                               ? Colors.grey[600] 
-                                               : theme.textTheme.titleLarge?.color,
-                                         ),
-                                       ),
-                                       const SizedBox(height: 6),
-                                       Text(
-                                         item['price'] ?? 'Free',
-                                         style: TextStyle(
-                                           fontSize: 16,
-                                           fontWeight: FontWeight.w600,
-                                           color: !isAvailable 
-                                               ? Colors.grey[500] 
-                                               : const Color(0xFFDB2777),
-                                           decoration: !isAvailable ? TextDecoration.lineThrough : null,
-                                         ),
-                                       ),
-                                       if (!isAvailable)
-                                         Padding(
-                                           padding: const EdgeInsets.only(top: 6),
-                                           child: Row(
-                                             children: [
-                                               Icon(
-                                                 Icons.error_outline,
-                                                 size: 14,
-                                                 color: const Color(0xFFDB2777),
-                                               ),
-                                               const SizedBox(width: 4),
-                                               Text(
-                                                 context.tr.noLongerAvailable,
-                                                 style: TextStyle(
-                                                   color: const Color(0xFFDB2777),
-                                                   fontSize: 12,
-                                                   fontWeight: FontWeight.w500,
-                                                 ),
-                                               ),
-                                             ],
-                                           ),
-                                         ),
-                                       const SizedBox(height: 12),
-                                     if (isAvailable)
-                                       Container(
-                                         decoration: BoxDecoration(
-                                           color: theme.brightness == Brightness.dark 
-                                               ? Colors.grey[800] 
-                                               : Colors.grey[100],
-                                           borderRadius: BorderRadius.circular(20),
-                                           border: Border.all(
-                                             color: const Color(0xFFDB2777).withOpacity(0.3),
-                                             width: 1,
-                                           ),
-                                         ),
-                                         child: Material(
-                                           color: Colors.transparent,
-                                           borderRadius: BorderRadius.circular(20),
-                                           child: Row(
-                                             mainAxisSize: MainAxisSize.min,
-                                             children: [
-                                               Material(
-                                                 color: Colors.transparent,
-                                                 child: InkWell(
-                                                   onTap: () => widget.onDecrement?.call(index),
-                                                   borderRadius: const BorderRadius.horizontal(left: Radius.circular(20)),
-                                                   child: Padding(
-                                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                     child: const Icon(
-                                                       Icons.remove, 
-                                                       size: 18, 
-                                                       color: Color(0xFFDB2777),
-                                                     ),
-                                                   ),
-                                                 ),
-                                               ),
-                                               Container(
-                                                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                                                 child: Text(
-                                                   '${item['quantity'] ?? 1}', 
-                                                   style: TextStyle(
-                                                     fontWeight: FontWeight.bold,
-                                                     fontSize: 16,
-                                                     color: theme.textTheme.bodyLarge?.color,
-                                                   ),
-                                                 ),
-                                               ),
-                                               Material(
-                                                 color: Colors.transparent,
-                                                 child: InkWell(
-                                                   onTap: () => widget.onIncrement?.call(index),
-                                                   borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
-                                                   child: Padding(
-                                                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                     child: const Icon(
-                                                       Icons.add, 
-                                                       size: 18, 
-                                                       color: Color(0xFFDB2777),
-                                                     ),
-                                                   ),
-                                                 ),
-                                               ),
-                                             ],
-                                           ),
-                                         ),
-                                       )
-                                     else
-                                       Container(
-                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                         decoration: BoxDecoration(
-                                           color: Colors.grey[200],
-                                           borderRadius: BorderRadius.circular(20),
-                                           border: Border.all(
-                                             color: Colors.grey[300]!,
-                                             width: 1,
-                                           ),
-                                         ),
-                                         child: Text(
-                                           '${context.tr.qty}: ${item['quantity'] ?? 1}', 
-                                           style: TextStyle(
-                                             fontWeight: FontWeight.w500,
-                                             fontSize: 14,
-                                             color: Colors.grey[600],
-                                           ),
-                                         ),
-                                       ),
-                                   ],
-                                 ),
-                               ),
-                             ],
-                           ),
-                         ),
-                        ),
-                        // Remove Button
-                        Positioned(
-                          right: 8,
-                          top: 8,
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            icon: Icon(
-                              Icons.delete_outline, 
-                              color: !isAvailable ? Colors.grey[400] : const Color(0xFFDB2777),
-                            ),
-                            onPressed: () {
-                               showDialog(
-                                 context: context,
-                                 builder: (BuildContext context) {
-                                   return AlertDialog(
-                                     shape: RoundedRectangleBorder(
-                                       borderRadius: BorderRadius.circular(16),
-                                     ),
-                                     title: Text(
-                                       context.tr.removeItem,
-                                       style: const TextStyle(color: Color(0xFFDB2777)),
-                                     ),
-                                     content: Text(context.tr.removeFromCartConfirm(item['title'] ?? '')),
-                                     actions: [
-                                       TextButton(
-                                         onPressed: () => Navigator.of(context).pop(),
-                                         child: Text(
-                                           context.tr.cancel,
-                                           style: TextStyle(color: theme.textTheme.bodyLarge?.color),
-                                         ),
-                                       ),
-                                       TextButton(
-                                         onPressed: () {
-                                           widget.onRemove?.call(index);
-                                           Navigator.of(context).pop();
-                                         },
-                                         child: Text(
-                                           context.tr.remove, 
-                                           style: const TextStyle(color: Color(0xFFDB2777), fontWeight: FontWeight.bold),
-                                         ),
-                                       ),
-                                     ],
-                                   );
-                                 },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              );
-        }
-      ),
-      bottomNavigationBar: ValueListenableBuilder<List<Map<String, dynamic>>>(
-        valueListenable: widget.cartItemsNotifier ?? ValueNotifier([]),
-        builder: (context, cartItems, child) {
-          if (cartItems.isEmpty) return const SizedBox.shrink();
-          
-          // Calculate total only for available items
-          List<Map<String, dynamic>> availableItemsForTotal = cartItems;
-          int unavailableCount = 0;
-          if (_hasCheckedAvailability && widget.validateItemExists != null) {
-            availableItemsForTotal = [];
-            for (int i = 0; i < cartItems.length; i++) {
-              if (_itemAvailability[i] == true) {
-                availableItemsForTotal.add(cartItems[i]);
-              } else {
-                unavailableCount++;
-              }
-            }
-          }
-          if (availableItemsForTotal.isEmpty) {
-            return const SizedBox.shrink();
-          }
-          
-          final total = _calculateTotal(availableItemsForTotal);
-          
-          return Container(
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(16),
-            child: SafeArea(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFDB2777).withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFDB2777).withOpacity(0.3),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                         context.tr.total,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFDB2777),
-                          ),
-                        ),
-                        Text(
-                          "\$${total.toStringAsFixed(2)}",
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFDB2777),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Payment Button
-                  Builder(
-                    builder: (context) {
-                      bool hasAvailableItems = true;
-                      int availableCount = cartItems.length;
-                      int unavailableCount = 0;
-                      
-                      if (_hasCheckedAvailability && widget.validateItemExists != null) {
-                        availableCount = _itemAvailability.values.where((available) => available == true).length;
-                        unavailableCount = _itemAvailability.values.where((available) => available == false).length;
-                        hasAvailableItems = availableCount > 0;
-                      }
-                      
-                      final bool canProceed = !_isProcessing && 
-                          cartItems.isNotEmpty && 
-                          hasAvailableItems;
-                      
-                      return SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: ElevatedButton(
-                          onPressed: canProceed 
-                              ? () => _processPayment(cartItems)
-                              : null,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDB2777),
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: Colors.grey[400],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 2,
-                          ),
-                          child: _isProcessing
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    const Icon(Icons.payment, size: 24),
-                                    const SizedBox(width: 8),
-                                     Text(
-                                       (unavailableCount > 0 && availableCount > 0)
-                                           ? context.tr.payForAvailableItems(availableCount)
-                                           : context.tr.proceedToPayment,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+    return Scaffold(
+      backgroundColor: _kDarkBg,
+      appBar: AppBar(
+        backgroundColor: _kDarkBg,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _kPink),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.shopping_cart_outlined, color: _kPink, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'My Cart',
+              style: TextStyle(
+                color: _kPink,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
               ),
             ),
+          ],
+        ),
+      ),
+      body: cartAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: _kPink),
+        ),
+        error: (e, _) => Center(
+          child: Text(
+            'Error: $e',
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
+        data: (cartResponse) {
+          // Access items via CartResponse → CartData → CartSummary → items
+          final summary = cartResponse.data.data;
+          final cartItems = summary.items; // List<CartItem>
+
+          if (cartItems.isEmpty) return _buildEmptyCart();
+
+          final mapped = cartItems.map(_cartItemToMap).toList();
+
+          // Use server-provided totals from CartSummary
+          final subtotal = summary.subtotal;
+          final tax = summary.taxAmount;
+          final total = summary.total;
+
+          // Availability check
+          if (widget.validateItemExists != null &&
+              !_hasCheckedAvailability &&
+              !_paymentCompleted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _checkItemAvailability(mapped);
+            });
+          }
+
+          return Column(
+            children: [
+              // Item count subtitle
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${cartItems.length} item${cartItems.length == 1 ? '' : 's'} in cart',
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                ),
+              ),
+
+              // Items list
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  itemCount: mapped.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) =>
+                      _buildCartItem(mapped, index),
+                ),
+              ),
+
+              // Order summary (uses server values)
+              _buildOrderSummary(subtotal, tax, total, mapped),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _buildFallbackIcon(Map<String, dynamic> item) {
-    switch (item['type']) {
-      case 'Video':
-        return const Icon(Icons.videocam, color: Colors.grey, size: 30);
-      case 'Song':
-      case 'Audio':
-        return const Icon(Icons.music_note, color: Colors.grey, size: 30);
-      case 'Literature':
-      case 'PDF':
-        return const Icon(Icons.picture_as_pdf, color: Colors.grey, size: 30);
-      default:
-        return const Icon(Icons.image, color: Colors.grey, size: 30);
-    }
-  }
-
-  DecorationImage? _getImageProvider(Map<String, dynamic> item) {
-
-    if (item['coverPath'] != null && item['coverPath'].toString().isNotEmpty) {
-       return DecorationImage(image: FileImage(File(item['coverPath'])), fit: BoxFit.cover);
-    }
-
-
-    if (item['filePath'] != null && item['filePath'].toString().isNotEmpty) {
-      if (item['type'] == 'Image') {
-         return DecorationImage(image: FileImage(File(item['filePath'])), fit: BoxFit.cover);
-      }
-    }
-    
-
-    if (item['image'] != null && item['image'].toString().isNotEmpty) {
-      if (item['image'].startsWith('http')) {
-        return DecorationImage(image: NetworkImage(item['image']), fit: BoxFit.cover);
-      }
-      return DecorationImage(image: AssetImage(item['image']), fit: BoxFit.cover);
-    }
-    return null;
-  }
-
-  Widget _buildVideoThumbnail(Map<String, dynamic> item) {
-    final videoPath = item['filePath'] as String?;
-    final coverPath = item['coverPath'] as String?;
-    
-    // If cover image exists, use it
-    if (coverPath != null && coverPath.isNotEmpty && File(coverPath).existsSync()) {
-      return Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-          image: DecorationImage(
-            image: FileImage(File(coverPath)),
-            fit: BoxFit.cover,
+  // ── Empty state ────────────────────────────────────────────────────────────
+  Widget _buildEmptyCart() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: _kPink.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.shopping_cart_outlined,
+              size: 64,
+              color: _kPink,
+            ),
           ),
-        ),
-      );
-    }
-    if (videoPath != null && videoPath.isNotEmpty && File(videoPath).existsSync()) {
-      return _VideoThumbnailWidget(
-        videoPath: videoPath,
-        width: 80,
-        height: 80,
-      );
-    }
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(12),
+          const SizedBox(height: 24),
+          const Text(
+            'Your cart is empty',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Add items to get started',
+            style: TextStyle(color: Colors.white54, fontSize: 14),
+          ),
+        ],
       ),
-      child: _buildFallbackIcon(item),
     );
   }
-}
-class _VideoThumbnailWidget extends StatefulWidget {
-  final String videoPath;
-  final double width;
-  final double height;
 
-  const _VideoThumbnailWidget({
-    required this.videoPath,
-    required this.width,
-    required this.height,
-  });
-
-  @override
-  State<_VideoThumbnailWidget> createState() => _VideoThumbnailWidgetState();
-}
-
-class _VideoThumbnailWidgetState extends State<_VideoThumbnailWidget> {
-  VideoPlayerController? _controller;
-  bool _isInitialized = false;
-  bool _hasError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideo();
-  }
-
-  Future<void> _initializeVideo() async {
-    try {
-      final file = File(widget.videoPath);
-      if (!file.existsSync()) {
-        setState(() => _hasError = true);
-        return;
-      }
-
-      _controller = VideoPlayerController.file(file);
-      await _controller!.initialize();
-      
-      // Pause at first frame
-      await _controller!.pause();
-      await _controller!.seekTo(Duration.zero);
-      
-      if (mounted) {
-        setState(() => _isInitialized = true);
-      }
-    } catch (e) {
-      debugPrint('Error initializing video thumbnail: $e');
-      if (mounted) {
-        setState(() => _hasError = true);
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_hasError) {
-      return Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Icon(Icons.videocam, color: Colors.grey, size: 30),
-      );
-    }
-
-    if (!_isInitialized || _controller == null) {
-      return Container(
-        width: widget.width,
-        height: widget.height,
-        decoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
+  // ── Cart item card ─────────────────────────────────────────────────────────
+  Widget _buildCartItem(List<Map<String, dynamic>> items, int index) {
+    final item = items[index];
+    final isAvailable = _itemAvailability[index] ?? true;
+    final price = _parsePrice(item['price']);
+    final author = item['author']?.toString() ?? '';
+    final imageDeco = _getImageProvider(item);
 
     return Container(
-      width: widget.width,
-      height: widget.height,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.black,
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kCardBorder, width: 1),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(
-          children: [
-            // Video frame
-            SizedBox(
-              width: widget.width,
-              height: widget.height,
-              child: FittedBox(
-                fit: BoxFit.cover,
-                child: SizedBox(
-                  width: _controller!.value.size.width,
-                  height: _controller!.value.size.height,
-                  child: VideoPlayer(_controller!),
-                ),
+      child: Row(
+        children: [
+          // Thumbnail
+          ClipRRect(
+            borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
+            child: Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: Colors.white10,
+                image: imageDeco,
+              ),
+              child: imageDeco == null
+                  ? Icon(_typeIcon(item['type']?.toString()),
+                  color: Colors.white38, size: 32)
+                  : null,
+            ),
+          ),
+
+          // Info
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['title']?.toString() ?? 'Unknown',
+                    style: TextStyle(
+                      color: isAvailable ? Colors.white : Colors.white38,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      decoration: isAvailable ? null : TextDecoration.lineThrough,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (author.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        'By $author',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-            // Play icon overlay
-            Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: Icon(
-                  Icons.play_circle_outline,
-                  color: Colors.white,
-                  size: 30,
+          ),
+
+          // Price + Remove
+          Padding(
+            padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  price == 0 ? 'Free' : '\$${price.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    color: isAvailable ? _kPink : Colors.white38,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    decoration: isAvailable ? null : TextDecoration.lineThrough,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => _confirmRemove(context, item, index),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade700,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.close, color: Colors.white, size: 13),
+                        SizedBox(width: 4),
+                        Text(
+                          'Remove',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmRemove(
+      BuildContext context, Map<String, dynamic> item, int index) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: _kCardBg,
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Remove Item',
+            style: TextStyle(color: _kPink, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Remove "${item['title']}" from cart?',
+          style: const TextStyle(color: Colors.white70),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child:
+            const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          TextButton(
+            onPressed: () {
+              widget.onRemove?.call(index);
+              ref.invalidate(cartProvider);
+              Navigator.pop(context);
+            },
+            child: const Text('Remove',
+                style: TextStyle(
+                    color: _kPink, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
+    );
+  }
+
+  // ── Order summary ──────────────────────────────────────────────────────────
+  Widget _buildOrderSummary(
+      double subtotal,
+      double tax,
+      double total,
+      List<Map<String, dynamic>> items,
+      ) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kCardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: const [
+              Icon(Icons.shopping_cart_outlined, color: _kPink, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'Order Summary',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(color: _kCardBorder, height: 1),
+          const SizedBox(height: 14),
+
+          // Subtotal
+          _summaryRow(
+            'Subtotal',
+            '\$${subtotal.toStringAsFixed(2)}',
+            valueColor: Colors.white,
+          ),
+          const SizedBox(height: 8),
+
+          // Tax
+          _summaryRow(
+            'Tax (18.00%)',
+            '\$${tax.toStringAsFixed(2)}',
+            valueColor: Colors.white,
+          ),
+          const SizedBox(height: 14),
+          const Divider(color: _kCardBorder, height: 1),
+          const SizedBox(height: 14),
+
+          // Total
+          _summaryRow(
+            'Total',
+            '\$${total.toStringAsFixed(2)}',
+            labelStyle: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 16),
+            valueColor: _kPink,
+            valueSize: 18,
+          ),
+          const SizedBox(height: 18),
+
+          // Checkout button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed:
+              _isProcessing ? null : () => _processPayment(items),
+              icon: _isProcessing
+                  ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+                  : const Icon(Icons.shopping_cart_checkout_rounded,
+                  color: Colors.white, size: 20),
+              label: Text(
+                _isProcessing ? 'Processing…' : 'Checkout',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kPink,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.grey.shade700,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(
+      String label,
+      String value, {
+        TextStyle? labelStyle,
+        Color valueColor = Colors.white70,
+        double valueSize = 14,
+      }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: labelStyle ??
+              const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: valueColor,
+            fontSize: valueSize,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
     );
   }
 }

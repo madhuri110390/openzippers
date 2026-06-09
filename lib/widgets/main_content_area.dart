@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart' as widgets;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
 import '../providers/cart_provider.dart';
@@ -1584,6 +1585,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
           // ── Action bar ───────────────────────────────────────────────────────
           // ── Media ─────────────────────────────────────────────────────────────
+
           if (_isUnlocked(post))
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -1622,7 +1624,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
               ),
             )
           else
-            _buildLockedOverlay(context, post),
+            Column(
+              children: [
+                _buildLockedOverlay(context, post),
+              ],
+            ),
 
           // ── Action bar ───────────────────────────────────────────────────────
           if (_isUnlocked(post))
@@ -2001,54 +2007,86 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                   ),
                 ),
                 const SizedBox(height: 18),
+                // Padding(
+                //   padding: const EdgeInsets.symmetric(horizontal: 32),
+                //   child: SizedBox(
+                //     width: double.infinity,
+                //     height: 48,
+                //     child: ElevatedButton.icon(
+                //      onPressed:
+                //           ? null
+                //           : () async {
+                //         //await ref
+                //           //  .read(paymentViewModelProvider.notifier)
+                //           //  .buyPost(postId: post["id"]);
+                //
+                //         await ref.refresh(cartProvider.future);
+                //
+                //         if (mounted) {
+                //           Navigator.push(
+                //             context,
+                //             MaterialPageRoute(
+                //               builder: (_) => const CartScreen(),
+                //             ),
+                //           );
+                //         }
+                //       },
+                //       // icon: paymentState.isLoading
+                //       //     ? const SizedBox(
+                //       //         width: 16,
+                //       //         height: 16,
+                //       //         child: CircularProgressIndicator(
+                //       //           strokeWidth: 2,
+                //       //           color: Colors.white,
+                //       //         ),
+                //       //       )
+                //       //     : const Icon(
+                //       //         Icons.shopping_cart_outlined,
+                //       //         color: Colors.white,
+                //       //         size: 18,
+                //       //       ),
+                //       label: Text(
+                //         //paymentState.isLoading
+                //           //  ? "Processing..."
+                //              "Add to Cart",
+                //         style: const TextStyle(
+                //           color: Colors.white,
+                //           fontSize: 14,
+                //           fontWeight: FontWeight.w600,
+                //         ),
+                //       ),
+                //       style: ElevatedButton.styleFrom(
+                //         backgroundColor: _kPink,
+                //         foregroundColor: Colors.white,
+                //         elevation: 0,
+                //         shape: RoundedRectangleBorder(
+                //           borderRadius: BorderRadius.circular(12),
+                //         ),
+                //       ),
+                //     ),
+                //   ),
+                // ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: SizedBox(
                     width: double.infinity,
                     height: 48,
-                    child: ElevatedButton.icon(
-                     onPressed:
-                          ? null
-                          : () async {
-                        //await ref
-                          //  .read(paymentViewModelProvider.notifier)
-                          //  .buyPost(postId: post["id"]);
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        widget.onAddToCart?.call(post);
 
+                        ref.invalidate(cartProvider);
                         await ref.refresh(cartProvider.future);
 
-                        if (mounted) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const CartScreen(),
-                            ),
-                          );
-                        }
+                        if (!mounted) return;
+
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CartScreen(),
+                          ),
+                        );
                       },
-                      // icon: paymentState.isLoading
-                      //     ? const SizedBox(
-                      //         width: 16,
-                      //         height: 16,
-                      //         child: CircularProgressIndicator(
-                      //           strokeWidth: 2,
-                      //           color: Colors.white,
-                      //         ),
-                      //       )
-                      //     : const Icon(
-                      //         Icons.shopping_cart_outlined,
-                      //         color: Colors.white,
-                      //         size: 18,
-                      //       ),
-                      label: Text(
-                        //paymentState.isLoading
-                          //  ? "Processing..."
-                             "Add to Cart",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _kPink,
                         foregroundColor: Colors.white,
@@ -2057,9 +2095,18 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      child: const Text(
+                        "Add to Cart",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ),
+
               ],
             ),
           ),

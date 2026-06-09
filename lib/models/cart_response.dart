@@ -68,20 +68,27 @@ class CartItem {
   final int postId;
   final String title;
   final String price;
+  final String authorName;
+  final String authorAvatar;
 
   CartItem({
     required this.id,
     required this.postId,
     required this.title,
     required this.price,
+    required this.authorName,
+    required this.authorAvatar,
   });
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
+    final user = json['user'] as Map<String, dynamic>? ?? {};
     return CartItem(
       id: json['id'],
       postId: json['post_id'],
       title: json['title'] ?? '',
       price: json['price'] ?? '',
+      authorName: user['name'] ?? '',
+      authorAvatar: user['avatar'] ?? '',
     );
   }
 }
