@@ -83,6 +83,7 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
   void _clearSearch() {
     _controller.clear();
     widget.onChanged?.call('');
+    ref.read(searchProvider.notifier).clear();
     setState(() {
       _hasText = false;
       _showDropdown = false;
@@ -98,6 +99,9 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
 
     return Material(
       color: Colors.transparent,
+      elevation: 0,
+      shadowColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -123,15 +127,15 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                       decoration: BoxDecoration(
                         color: isDark
                             ? theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.15)
-                            : const Color(0xFFF3F4F6),
+                            .withValues(alpha: 0)
+                            : Colors.transparent,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
                           color: _hasText
                               ? _kPink
                               : (isDark
                               ? _kPink.withValues(alpha: 0.45)
-                              : Colors.transparent),
+                              : Colors.white),
                           width: _hasText ? 1.5 : 1.0,
                         ),
                       ),
@@ -283,7 +287,7 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
               left: 0,
               right: 0,
               child: Material(
-                elevation: 4,
+                elevation: 0,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(12),
                   bottomRight: Radius.circular(12),

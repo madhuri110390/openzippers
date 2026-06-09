@@ -1398,19 +1398,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void _onSearchChanged(String query) {
     setState(() {
       _searchQuery = query;
-
       if (query.isEmpty) {
         _selectedHomeUser = null;
-      } else {
-        try {
-          _selectedHomeUser = _allUsers.firstWhere(
-                (u) =>
-            u.name.toLowerCase().contains(query.toLowerCase()) ||
-                u.username.toLowerCase().contains(query.toLowerCase()),
-          );
-        } catch (e) {
-          _selectedHomeUser = null;
-        }
       }
     });
 

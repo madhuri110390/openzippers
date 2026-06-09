@@ -317,7 +317,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
   // ── Filtered posts ─────────────────────────────────────────────────────────
   List<Map<String, dynamic>> get _filteredPosts {
-    if (widget.searchQuery.isNotEmpty) return [];
+
 
     int idx = _selectedIndex == 4 ? _lastFeedIndex : _selectedIndex;
 
