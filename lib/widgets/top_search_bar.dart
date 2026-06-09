@@ -96,331 +96,287 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
     final isDark = theme.brightness == Brightness.dark;
     final searchState = ref.watch(searchProvider);
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: theme.appBarTheme.backgroundColor,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: SafeArea(
-            bottom: false,
-            child: Row(
-              children: [
-                GestureDetector(
-                  onTap: widget.onHomeTap,
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10),
-                    child: const Icon(Icons.bolt_rounded, color: _kPink, size: 28),
-                  ),
-                ),
-                Expanded(
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? theme.colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.15)
-                          : const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: _hasText
-                            ? _kPink
-                            : (isDark
-                            ? _kPink.withValues(alpha: 0.45)
-                            : Colors.transparent),
-                        width: _hasText ? 1.5 : 1.0,
-                      ),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.search_rounded,
-                          color: _hasText ? _kPink : theme.hintColor,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: TextField(
-                            controller: _controller,
-                            focusNode: _focusNode,
-                            onChanged: (val) {
-                              widget.onChanged?.call(val);
-                              setState(() => _showDropdown =
-                                  val.isNotEmpty && _focusNode.hasFocus);
-                              if (val.isNotEmpty) {
-                                ref
-                                    .read(searchProvider.notifier)
-                                    .searchUsers(val);
-                              } else {
-                                ref.read(searchProvider.notifier).clear();
-                              }
-                            },
-                            onTap: widget.onTap,
-                            cursorColor: _kPink,
-                            cursorWidth: 2,
-                            style: TextStyle(
-                              color: theme.textTheme.bodyMedium?.color,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            decoration: InputDecoration(
-                              hintText: context.tr.searchUsers,
-                              hintStyle: TextStyle(
-                                color: theme.hintColor,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w400,
-                              ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              isDense: true,
-                              contentPadding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                        if (_hasText)
-                          GestureDetector(
-                            onTap: _clearSearch,
-                            child: Container(
-                              height: 22,
-                              width: 22,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: theme.hintColor.withValues(alpha: 0.2),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.close,
-                                  size: 14, color: theme.hintColor),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                if (widget.currentUser?.isArtist == true)
-                  _NavIconButton(
-                    icon: Icons.add_box_outlined,
-                    isDark: isDark,
-                    tooltip: context.tr.createPost,
-                    onPressed: widget.onCreateTap,
-                  ),
-                Consumer(
-                  builder: (context, ref, _) {
-                    final cartAsync = ref.watch(cartProvider);
-                    final count = cartAsync.whenOrNull(
-                      data: (response) => response.data.data.itemCount,
-                    ) ?? 0;
-                    return _BadgedIconButton(
-                      icon: Icons.shopping_cart_outlined,
-                      badgeCount: count,
-                      isDark: isDark,
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const CartScreen(),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                ),
-                ValueListenableBuilder<List<Map<String, dynamic>>>(
-                  valueListenable:
-                  widget.notificationsNotifier ?? ValueNotifier([]),
-                  builder: (context, notifications, _) {
-                    final unreadCount = notifications
-                        .where((n) => n['isRead'] != true)
-                        .length;
-                    return _BadgedIconButton(
-                      icon: Icons.notifications_outlined,
-                      badgeCount: unreadCount,
-                      isDark: isDark,
-                      onPressed: () {
-                        final currentUser = widget.currentUser;
-                        final onNotificationsUpdated =
-                            widget.onNotificationsUpdated;
-                        final notificationsNotifier =
-                            widget.notificationsNotifier;
-                        if (currentUser != null &&
-                            onNotificationsUpdated != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  ValueListenableBuilder<List<Map<String, dynamic>>>(
-                            valueListenable:
-                            notificationsNotifier ?? ValueNotifier([]),
-                            builder: (context, currentNotifications, _) {
-                              return NotificationsScreen(
-                                notifications: currentNotifications,
-                                onBack: () => Navigator.pop(context),
-                                onNotificationsUpdated:
-                                onNotificationsUpdated,
-                                currentUser: currentUser,
-                                onNotificationTap:
-                                widget.onNotificationTap,
-                              );
-                            },
-                            ),
-                            ),
-                          );
-                        }
-                      },
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-
-        // ── Search Dropdown ────────────────────────────────────────────────
-        if (_showDropdown && _hasText)
+    return Material(
+      color: Colors.transparent,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // ── Search bar ──────────────────────────────────────────────
           Container(
-            constraints: const BoxConstraints(maxHeight: 320),
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              border: Border(
-                bottom: BorderSide(
-                    color: theme.dividerColor.withValues(alpha: 0.3)),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: searchState.isLoading
-                ? const Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(
-                child: CircularProgressIndicator(
-                    color: _kPink, strokeWidth: 2),
-              ),
-            )
-                : searchState.users.isEmpty
-                ? Padding(
-              padding: const EdgeInsets.all(20),
+            color: theme.appBarTheme.backgroundColor,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: SafeArea(
+              bottom: false,
               child: Row(
                 children: [
-                  Icon(Icons.person_search_outlined,
-                      color: theme.hintColor, size: 20),
-                  const SizedBox(width: 10),
-                  Text('No users found',
-                      style: TextStyle(color: theme.hintColor)),
-                ],
-              ),
-            )
-                : ListView(
-              shrinkWrap: true,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-                  child: Text(
-                    'USERS',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.hintColor,
-                      letterSpacing: 0.8,
+                  GestureDetector(
+                    onTap: widget.onHomeTap,
+                    child: const Padding(
+                      padding: EdgeInsets.only(right: 10),
+                      child: Icon(Icons.bolt_rounded, color: _kPink, size: 28),
                     ),
                   ),
-                ),
-                ...searchState.users.take(6).map<Widget>((user) {
-                  return InkWell(
-                    onTap: () {
-                      _clearSearch();
-                      final mockUser = MockUser(
-                        username: user.username,
-                        name: user.name,
-                        avatar: user.avatar,
-                        coverImage: '',
-                        isVerified: false,
-                        bio: '',
-                        type: 'public',
-                        country: '',
-                        state: '',
-                        city: '',
-                        gender: '',
-                      );
-                      widget.onUserTap?.call(mockUser);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      height: 50,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? theme.colorScheme.surfaceContainerHighest
+                            .withValues(alpha: 0.15)
+                            : const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: _hasText
+                              ? _kPink
+                              : (isDark
+                              ? _kPink.withValues(alpha: 0.45)
+                              : Colors.transparent),
+                          width: _hasText ? 1.5 : 1.0,
+                        ),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
                       child: Row(
                         children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor:
-                            _kPink.withValues(alpha: 0.1),
-                            backgroundImage: user.avatar.isNotEmpty
-                                ? NetworkImage(user.avatar)
-                                : null,
-                            child: user.avatar.isEmpty
-                                ? Text(
-                              user.name.isNotEmpty
-                                  ? user.name[0].toUpperCase()
-                                  : '?',
-                              style: const TextStyle(
-                                  color: _kPink,
-                                  fontWeight: FontWeight.bold),
-                            )
-                                : null,
+                          Icon(
+                            Icons.search_rounded,
+                            color: _hasText ? _kPink : theme.hintColor,
+                            size: 22,
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment:
-                              CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: theme
-                                        .textTheme.bodyLarge?.color,
-                                  ),
+                            child: TextField(
+                              controller: _controller,
+                              focusNode: _focusNode,
+                              onChanged: (val) {
+                                widget.onChanged?.call(val);
+                                setState(() => _showDropdown =
+                                    val.isNotEmpty && _focusNode.hasFocus);
+                                if (val.isNotEmpty) {
+                                  ref.read(searchProvider.notifier).searchUsers(val);
+                                } else {
+                                  ref.read(searchProvider.notifier).clear();
+                                }
+                              },
+                              onTap: widget.onTap,
+                              cursorColor: _kPink,
+                              cursorWidth: 2,
+                              style: TextStyle(
+                                color: theme.textTheme.bodyMedium?.color,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              decoration: InputDecoration(
+                                hintText: context.tr.searchUsers,
+                                hintStyle: TextStyle(
+                                  color: theme.hintColor,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
                                 ),
-                                Text(
-                                  '@${user.username}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: theme.hintColor,
-                                  ),
-                                ),
-                              ],
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
+                                isDense: true,
+                                contentPadding:
+                                const EdgeInsets.symmetric(vertical: 12),
+                              ),
                             ),
                           ),
-                          Icon(Icons.arrow_forward_ios_rounded,
-                              size: 13, color: theme.hintColor),
+                          if (_hasText)
+                            GestureDetector(
+                              onTap: _clearSearch,
+                              child: Container(
+                                height: 22,
+                                width: 22,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: theme.hintColor.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(Icons.close,
+                                    size: 14, color: theme.hintColor),
+                              ),
+                            ),
                         ],
                       ),
                     ),
-                  );
-                }).toList(),
-              ],
+                  ),
+                  const SizedBox(width: 6),
+                  if (widget.currentUser?.isArtist == true)
+                    _NavIconButton(
+                      icon: Icons.add_box_outlined,
+                      isDark: isDark,
+                      tooltip: context.tr.createPost,
+                      onPressed: widget.onCreateTap,
+                    ),
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final cartAsync = ref.watch(cartProvider);
+                      final count = cartAsync.whenOrNull(
+                        data: (response) => response.data.data.itemCount,
+                      ) ?? 0;
+                      return _BadgedIconButton(
+                        icon: Icons.shopping_cart_outlined,
+                        badgeCount: count,
+                        isDark: isDark,
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CartScreen(),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  ValueListenableBuilder<List<Map<String, dynamic>>>(
+                    valueListenable:
+                    widget.notificationsNotifier ?? ValueNotifier([]),
+                    builder: (context, notifications, _) {
+                      final unreadCount =
+                          notifications.where((n) => n['isRead'] != true).length;
+                      return _BadgedIconButton(
+                        icon: Icons.notifications_outlined,
+                        badgeCount: unreadCount,
+                        isDark: isDark,
+                        onPressed: () {
+                          final currentUser = widget.currentUser;
+                          final onNotificationsUpdated =
+                              widget.onNotificationsUpdated;
+                          final notificationsNotifier = widget.notificationsNotifier;
+                          if (currentUser != null &&
+                              onNotificationsUpdated != null) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    ValueListenableBuilder<List<Map<String, dynamic>>>(
+                              valueListenable:
+                              notificationsNotifier ?? ValueNotifier([]),
+                              builder: (context, currentNotifications, _) {
+                                return NotificationsScreen(
+                                  notifications: currentNotifications,
+                                  onBack: () => Navigator.pop(context),
+                                  onNotificationsUpdated: onNotificationsUpdated,
+                                  currentUser: currentUser,
+                                  onNotificationTap: widget.onNotificationTap,
+                                );
+                              },
+                              ),
+                              ),
+                            );
+                          }
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
-      ],
+
+          // ── Floating dropdown ────────────────────────────────────────
+          if (_showDropdown && _hasText)
+            Positioned(
+              top: 70,
+              left: 0,
+              right: 0,
+              child: Material(
+                elevation: 4,
+                borderRadius: const BorderRadius.only(
+                  bottomLeft: Radius.circular(12),
+                  bottomRight: Radius.circular(12),
+                ),
+                color: theme.cardColor,
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: searchState.isLoading
+                      ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                          color: _kPink, strokeWidth: 2),
+                    ),
+                  )
+                      : searchState.users.isEmpty
+                      ? Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.person_search_outlined,
+                            color: theme.hintColor, size: 20),
+                        const SizedBox(width: 10),
+                        Text('No users found',
+                            style: TextStyle(color: theme.hintColor)),
+                      ],
+                    ),
+                  )
+                      : ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                        child: Text(
+                          'USERS',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: theme.hintColor,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      ...searchState.users.take(6).map<Widget>((user) {
+                        return InkWell(
+                          onTap: () {
+                            _clearSearch();
+                            final mockUser = MockUser(
+                              username: user.username,
+                              name: user.name,
+                              avatar: user.avatar,
+                              coverImage: '',
+                              isVerified: false,
+                              bio: '',
+                              type: 'public',
+                              country: '',
+                              state: '',
+                              city: '',
+                              gender: '',
+                            );
+                            widget.onUserTap?.call(mockUser);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    user.name,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 14,
+                                      color: theme
+                                          .textTheme.bodyLarge?.color,
+                                    ),
+                                  ),
+                                ),
+                                Icon(Icons.arrow_forward_ios_rounded,
+                                    size: 13, color: theme.hintColor),
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

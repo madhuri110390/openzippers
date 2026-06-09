@@ -957,7 +957,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     final isDesktop = MediaQuery.of(context).size.width > 1000;
     final searchState = ref.watch(searchProvider);
 
-    return Padding(
+    return ColoredBox(
+      color: Theme.of(context).scaffoldBackgroundColor,
+        child: Padding(
       padding: EdgeInsets.symmetric(
         horizontal: isDesktop ? 20.0 : 16.0,
         vertical: 16.0,
@@ -1032,7 +1034,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           ),
         ],
       ),
-    );
+        ), );
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1104,7 +1106,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: theme.textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1214,7 +1216,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     required VoidCallback onTap,
   }) {
     final theme = Theme.of(context);
-    final color = isActive ? _kPink : Colors.white;
+    final color = isActive ? _kPink : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
