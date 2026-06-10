@@ -55,9 +55,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       debugPrint('=== FETCH COMMENTS pid=$pid');
 
       // Try the endpoint that works — same base as post
-      final response = await Dio().post(
+      final response = await Dio().get(
         'https://openzippers.com/api/v1/zippfans/comments',
-        data: FormData.fromMap({'post_id': pid}),
+        queryParameters: {'post_id': pid},
         options: Options(
           headers: {
             'Accept': 'application/json',
