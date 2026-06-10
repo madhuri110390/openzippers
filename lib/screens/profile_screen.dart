@@ -150,21 +150,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final dio = ref.read(dioProvider);
     _viewModel = ProfileViewModel(dio);
 
+    // Show posts immediately from parent
+    _posts = List<Map<String, dynamic>>.from(widget.posts);
+
+    // Pre-fill liked state
+    for (var p in widget.readPosts) {
+      _likedPostIds.add(
+        p['id']?.toString() ?? "${p['title']}_${p['author']}",
+      );
+    }
+
+    _loadAlbums();
+    _fetchConnectionCounts();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? widget.authToken;
       _viewModel.fetchPresence(token);
+      // Run all three in parallel for speed
+      await Future.wait([
+        _loadPostsFromApi(),
+        _refreshUserData(),
+        if (isMe) _fetchLoggedInUserDetails() else Future.value(),
+      ]);
     });
-
-    _posts = widget.posts;
-    _loadAlbums();
-    for (var p in widget.readPosts) {
-      _likedPostIds.add(p['id']?.toString() ?? "${p['title']}_${p['author']}");
-    }
-    _fetchLoggedInUserDetails();
-    _refreshUserData();
-    Future.delayed(const Duration(seconds: 2), _loadPostsFromApi);
-    _fetchConnectionCounts();
   }
 
   @override
@@ -177,11 +186,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void didUpdateWidget(ProfileScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.posts != widget.posts) {
+    if (oldWidget.posts != widget.posts && _posts.isEmpty) {
       setState(() {
-        _posts = widget.posts;
+        _posts = List<Map<String, dynamic>>.from(widget.posts);
       });
-      _prefillRatings(widget.posts);
+      _prefillRatings(_posts);
     }
   }
   void _showRatingDialog(Map<String, dynamic> post) {
@@ -344,6 +353,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             );
           });
           _resolveLocationsUpdates(user.countryId, user.stateId, user.cityId);
+          if (_albums.isEmpty) _loadAlbums();
           _loadAlbums();
           _fetchConnectionCounts();
         }
@@ -410,7 +420,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             if (_posts.isEmpty) {
               _posts = normalized;
             } else {
-              // Merge — only update counts, don't replace whole list
+              // merge only counts
               for (final updated in normalized) {
                 final id = updated['id']?.toString() ?? '';
                 if (id.isEmpty) continue;
@@ -418,20 +428,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       (p) => p['id']?.toString() == id,
                 );
                 if (existingIdx != -1) {
-                  // Only update numeric counts
-                  _posts[existingIdx]['commentsCount'] = updated['commentsCount'];
+                  // Only update commentsCount if server has MORE — never reset local count
+                  final localCount = (_posts[existingIdx]['commentsCount'] ?? 0) as num;
+                  final serverCount = (updated['commentsCount'] ?? 0) as num;
+                  if (serverCount > localCount) {
+                    _posts[existingIdx]['commentsCount'] = updated['commentsCount'];
+                  }
+
+                  // likeCount — use server value (source of truth)
                   _posts[existingIdx]['likeCount']     = updated['likeCount'];
                   _posts[existingIdx]['averageRating'] = updated['averageRating'];
                   _posts[existingIdx]['totalRatings']  = updated['totalRatings'];
+                  _posts[existingIdx]['imageUrl']      = updated['imageUrl'];
+                  _posts[existingIdx]['filePath']      = updated['filePath'];
+                  _posts[existingIdx]['coverPath']     = updated['coverPath'];
                 } else {
-                  // New post from server — add it
                   _posts.add(updated);
                 }
               }
-              // Remove deleted posts
+              // Remove deleted
               _posts.removeWhere((p) {
                 final id = p['id']?.toString() ?? '';
-                return !normalized.any((n) => n['id']?.toString() == id);
+                return id.isNotEmpty &&
+                    !normalized.any((n) => n['id']?.toString() == id);
               });
             }
 
@@ -513,7 +532,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             if (deletedAt.isNotEmpty && deletedAt != 'null') return false;
             return true;
           }).toList();
-          if (mounted) setState(() => _posts = normalizedPosts);
+          if (mounted) {
+            setState(() {
+              for (final updated in normalizedPosts) {
+                final id = updated['id']?.toString() ?? '';
+                if (id.isEmpty) continue;
+                final existingIdx = _posts.indexWhere((p) => p['id']?.toString() == id);
+                if (existingIdx == -1) _posts.add(updated);
+              }
+              if (_posts.isEmpty) _posts = normalizedPosts;
+            });
+          }
         } else {
           final int? userId = prefs.getInt('user_id');
           if (userId != null) {
@@ -529,7 +558,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 if (deletedAt.isNotEmpty && deletedAt != 'null') return false;
                 return true;
               }).toList();
-              if (mounted) setState(() => _posts = normalizedPosts);
+              if (mounted) {
+                setState(() {
+                  for (final updated in normalizedPosts) {
+                    final id = updated['id']?.toString() ?? '';
+                    if (id.isEmpty) continue;
+                    final existingIdx = _posts.indexWhere((p) => p['id']?.toString() == id);
+                    if (existingIdx == -1) _posts.add(updated);
+                  }
+                  if (_posts.isEmpty) _posts = normalizedPosts;
+                });
+              }
             }
           }
         }
@@ -1571,7 +1610,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           });
 
                           // Call home screen handler for local DB sync
-                          widget.onPostAction(post, 'Like');
+                          // widget.onPostAction(post, 'Like');
 
                           // Call API with auth token
                           final pid = post['id'] is int ? post['id'] as int : int.tryParse(post['id'].toString());
@@ -1592,6 +1631,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   options: Options(validateStatus: (s) => s != null && s < 500),
                                 );
                                 debugPrint('LIKE RESPONSE ${response.statusCode}: ${response.data}');
+                                if (response.statusCode == 200 && response.data is Map) {
+                                  final data = response.data['data'];
+                                  if (data is Map) {
+                                    final isLiked = data['is_liked'] == true;
+                                    final likesCount = data['likes_count'];
+                                    if (mounted) {
+                                      setState(() {
+                                        if (isLiked) {
+                                          _likedPostIds.add(key);
+                                        } else {
+                                          _likedPostIds.remove(key);
+                                        }
+                                        if (postIndex != -1 && likesCount != null) {
+                                          _posts[postIndex]['likeCount'] = likesCount;
+                                          post['likeCount'] = likesCount;
+                                        }
+                                      });
+                                    }
+                                  }
+                                }
                               }
                             } catch (e) {
                               debugPrint('Like API error: $e');
@@ -1880,6 +1939,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                         debugPrint('=== LIKE STATUS: ${response.statusCode}');
                         debugPrint('=== LIKE RESPONSE: ${response.data}');
+                        if (response.statusCode == 200 && response.data is Map) {
+                          final data = response.data['data'];
+                          if (data is Map) {
+                            final isLiked = data['is_liked'] == true;
+                            final likesCount = data['likes_count'];
+                            if (mounted) {
+                              setState(() {
+                                if (isLiked) {
+                                  _likedPostIds.add(key);
+                                } else {
+                                  _likedPostIds.remove(key);
+                                }
+                                if (postIndex != -1 && likesCount != null) {
+                                  _posts[postIndex]['likeCount'] = likesCount;
+                                  post['likeCount'] = likesCount;
+                                }
+                              });
+                            }
+                          }
+                        }
                       } catch (e) {
                         debugPrint('=== LIKE EXCEPTION: $e');
                         setState(() {
@@ -2509,7 +2588,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     (p) => p['id']?.toString() == id,
               );
               if (existingIdx != -1) {
-                _posts[existingIdx]['commentsCount'] = updated['commentsCount'];
+                final localCount = (_posts[existingIdx]['commentsCount'] ?? 0) as num;
+                final serverCount = (updated['commentsCount'] ?? 0) as num;
+                if (serverCount > localCount) {
+                  _posts[existingIdx]['commentsCount'] = updated['commentsCount'];
+                }
                 _posts[existingIdx]['likeCount'] = updated['likeCount'];
               }
               // Merge liked state from server

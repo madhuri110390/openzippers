@@ -52,49 +52,71 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
     try {
       final token = await _getToken();
-      final response = await Dio().get(
-        'https://openzippers.com/api/v1/zippfans/posts/$pid/comments',
+      debugPrint('=== FETCH COMMENTS pid=$pid');
+
+      // Try the endpoint that works — same base as post
+      final response = await Dio().post(
+        'https://openzippers.com/api/v1/zippfans/comments',
+        data: FormData.fromMap({'post_id': pid}),
         options: Options(
           headers: {
             'Accept': 'application/json',
-            if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
           },
-          validateStatus: (s) => s != null && s < 500,
+          validateStatus: (s) => s != null && s < 600,
         ),
       );
 
+      debugPrint('=== FETCH STATUS: ${response.statusCode}');
+      debugPrint('=== FETCH DATA: ${response.data}');
+
       if (!mounted) return;
 
-      List<Map<String, dynamic>> fetched = [];
+      List? rawList;
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
-        List? rawList;
-        if (data is List) {
+        if (data is Map) {
+          // Try all possible shapes
+          final d = data['data'];
+          if (d is List) {
+            rawList = d;
+          } else if (d is Map) {
+            rawList = d['comments'] as List? ??
+                d['data'] as List? ??
+                d['items'] as List? ?? [];
+          } else {
+            rawList = data['comments'] as List? ?? [];
+          }
+        } else if (data is List) {
           rawList = data;
-        } else if (data is Map) {
-          final dataField = data['data'];
-          if (dataField is List) rawList = dataField;
-          else if (dataField is Map && dataField['data'] is List) rawList = dataField['data'];
-          else if (data['comments'] is List) rawList = data['comments'];
-        }
-        if (rawList != null) {
-          fetched = rawList.map((e) => _normalizeComment(e)).toList();
         }
       }
 
-      // Preserve optimistic comments that haven't been echoed by API
+      rawList ??= [];
+      debugPrint('=== PARSED ${rawList.length} comments');
+
+      final fetched = _flatten(
+        rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+      );
+
       final pending = _localComments.where((c) => c['_pending'] == true).toList();
       final merged = [...pending, ...fetched];
-      final rootCount = merged.where((c) => c['parentId'] == null || c['parentId'] == 0 || c['parentId'] == '0').length;
+      final rootCount = merged.where((c) {
+        final pid = c['parentId'];
+        return pid == null || pid == 0 || pid == '0';
+      }).length;
 
-      setState(() {
-        _localComments = merged;
-        _serverCount = rootCount;
-        widget.post['comments'] = _localComments;
-        widget.post['commentsCount'] = rootCount;
-      });
+      if (mounted) {
+        setState(() {
+          _localComments = merged;
+          _serverCount = rootCount > _serverCount ? rootCount : _serverCount;
+          widget.post['comments'] = _localComments;
+          widget.post['commentsCount'] = _getDisplayCount();
+        });
+      }
     } catch (e) {
-      debugPrint('CommentsBottomSheet fetch error: $e');
+      debugPrint('=== FETCH ERROR: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -398,14 +420,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
       final response = await dio.post(
         'zippfans/comments',
-        data: {
+        data: FormData.fromMap({
           'post_id': parsedPostId,
           'content': cleanText,
           if (!isRoot && parentId != null)
             'parent_id': parentId is int
                 ? parentId
                 : int.tryParse(parentId.toString()),
-        },
+        }),
         options: Options(
           validateStatus: (s) => s != null && s < 500,
         ),
@@ -611,8 +633,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   // ── Post preview ──────────────────────────────────────────────────────────
   Widget _buildPostPreview(ThemeData theme) {
     final postType = (widget.post['post_type'] ?? '').toString().toLowerCase();
-    final imageUrl =
-    _normalizeUrl((widget.post['image'] as String? ?? '').toString());
+    final imageUrl = _normalizeUrl(
+        (widget.post['imageUrl'] ?? widget.post['image'] ?? widget.post['coverPath'] ?? '').toString()
+    );
     final title = (widget.post['title'] as String? ?? '').trim();
     final author = (widget.post['author'] as String? ?? '').trim();
     final ImageProvider? imageProvider =
