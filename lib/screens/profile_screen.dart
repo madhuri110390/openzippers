@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -98,7 +99,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
 }
-
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   int _selectedTabIndex = 0;
   final Map<dynamic, int> selectedRatings = {};
@@ -159,7 +159,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _posts = widget.posts;
     _loadAlbums();
     for (var p in widget.readPosts) {
-      _likedPostIds.add("${p['title']}_${p['author']}");
+      _likedPostIds.add(p['id']?.toString() ?? "${p['title']}_${p['author']}");
     }
     _fetchLoggedInUserDetails();
     _refreshUserData();
@@ -377,23 +377,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           final map = PostHelper.normalizePost(raw);
           map['id'] = raw['id'];
           map['commentsCount'] = raw['comments_count'] ?? raw['commentsCount'] ?? 0;
-          map['averageRating'] =
-              raw['averageRating'] ??
-                  raw['average_rating'] ??
-                  raw['avg_rating'] ??
-                  0;
-
-          map['totalRatings'] =
-              raw['totalRatings'] ??
-                  raw['total_ratings'] ??
-                  raw['rating_count'] ??
-                  0;
-
-          map['my_rating'] =
-              raw['my_rating'] ??
-                  raw['user_rating'] ??
-                  raw['rating'] ??
-                  0;
+          map['likeCount']     = raw['likes_count'] ?? raw['likeCount'] ?? raw['like_count'] ?? 0;
+          map['averageRating'] = raw['averageRating'] ?? raw['average_rating'] ?? raw['avg_rating'] ?? 0;
+          map['average_rating']= map['averageRating'];
+          map['totalRatings']  = raw['totalRatings'] ?? raw['total_ratings'] ?? raw['rating_count'] ?? 0;
+          map['total_ratings'] = map['totalRatings'];
+          map['my_rating']     = raw['my_rating'] ?? raw['user_rating'] ?? raw['rating'] ?? 0;
+          map['user_rating']   = map['my_rating'];
+          map['imageUrl']      = raw['image'] ?? raw['imageUrl'] ?? raw['thumbnail'] ?? '';
+          map['filePath']      = raw['video_url'] ?? raw['audio_url'] ?? raw['literature_url'] ?? raw['image'] ?? '';
+          map['coverPath']     = raw['preview_url'] ?? raw['cover'] ?? raw['image'] ?? '';
+          map['is_liked']      = raw['is_liked'];
           return map;
         }).where((p) {
           final deletedAt = p['deleted_at']?.toString() ?? '';
@@ -404,10 +398,63 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           const brokenPatterns = ['/2026/04/17773'];
           return !brokenPatterns.any((pattern) => imageUrl.contains(pattern));
         }).toList();
+
         if (mounted) {
+          // Save scroll position
+          final savedOffset = _scrollController.hasClients
+              ? _scrollController.offset
+              : 0.0;
+
           setState(() {
-            _posts = normalized;
-            _prefillRatings(normalized);
+            // If first load, replace entirely
+            if (_posts.isEmpty) {
+              _posts = normalized;
+            } else {
+              // Merge — only update counts, don't replace whole list
+              for (final updated in normalized) {
+                final id = updated['id']?.toString() ?? '';
+                if (id.isEmpty) continue;
+                final existingIdx = _posts.indexWhere(
+                      (p) => p['id']?.toString() == id,
+                );
+                if (existingIdx != -1) {
+                  // Only update numeric counts
+                  _posts[existingIdx]['commentsCount'] = updated['commentsCount'];
+                  _posts[existingIdx]['likeCount']     = updated['likeCount'];
+                  _posts[existingIdx]['averageRating'] = updated['averageRating'];
+                  _posts[existingIdx]['totalRatings']  = updated['totalRatings'];
+                } else {
+                  // New post from server — add it
+                  _posts.add(updated);
+                }
+              }
+              // Remove deleted posts
+              _posts.removeWhere((p) {
+                final id = p['id']?.toString() ?? '';
+                return !normalized.any((n) => n['id']?.toString() == id);
+              });
+            }
+
+            // Merge liked state — never remove optimistic likes
+            for (final p in normalized) {
+              final id = p['id']?.toString() ?? '';
+              if (id.isEmpty) continue;
+              if (p['is_liked'] == true || p['is_liked'] == 1) {
+                _likedPostIds.add(id);
+              }
+            }
+
+            _prefillRatings(_posts);
+          });
+
+          // Restore scroll position after rebuild
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted &&
+                _scrollController.hasClients &&
+                savedOffset > 0 &&
+                savedOffset <= _scrollController.position.maxScrollExtent) {
+              _scrollController.jumpTo(savedOffset);
+            }
           });
         }
       }
@@ -678,17 +725,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _openCommentsSheet(Map<String, dynamic> post) async {
     if (post['comments'] == null) post['comments'] = [];
+
+    final savedOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : 0.0;
+
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => CommentsBottomSheet(
-        post: post,
-        currentUser: effectiveUser,
-        onPostAction: widget.onPostAction,
-        allUsers: widget.users,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, controller) => CommentsBottomSheet(
+          post: post,
+          currentUser: effectiveUser,
+          onPostAction: widget.onPostAction,
+          allUsers: widget.users,
+          scrollController: controller,
+        ),
       ),
     );
+
+    // Update comment count locally immediately
     final idx = _posts.indexWhere((p) => p['id'] == post['id']);
     if (idx != -1 && mounted) {
       setState(() {
@@ -696,6 +756,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _posts[idx]['comments'] = post['comments'];
       });
     }
+
+    // Restore scroll before reload
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          _scrollController.hasClients &&
+          savedOffset > 0 &&
+          savedOffset <= _scrollController.position.maxScrollExtent) {
+        _scrollController.jumpTo(savedOffset);
+      }
+    });
+
+    // Silent merge reload in background
     await _loadPostsFromApi();
   }
 
@@ -800,6 +872,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _buildFixedHeader(theme, isSmallScreen),
             Expanded(
               child: SingleChildScrollView(
+                key: const PageStorageKey('profile_scroll'),
                 controller: _scrollController,
                 child: Center(
                   child: ConstrainedBox(
@@ -1387,6 +1460,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
     return GridView.builder(
+      key: PageStorageKey('profile_grid_$_selectedTabIndex'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(20),
@@ -1469,31 +1543,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       // Like
+                      // Like
                       GestureDetector(
-                        onTap: () {
-                          final key = "${post['title']}_${post['author']}";
+                        onTap: () async {
+                          final key = post['id']?.toString() ?? '';
+                          if (key.isEmpty) return;
                           final wasLiked = _likedPostIds.contains(key);
-                          final postIndex = _posts.indexWhere((p) => p['id'] == post['id']);
-                          if (postIndex != -1) {
-                            setState(() {
-                              if (wasLiked) {
-                                _likedPostIds.remove(key);
-                                _posts[postIndex]['likeCount'] = (_posts[postIndex]['likeCount'] ?? 0) - 1;
-                              } else {
-                                _likedPostIds.add(key);
-                                _posts[postIndex]['likeCount'] = (_posts[postIndex]['likeCount'] ?? 0) + 1;
+                          final postIndex = _posts.indexWhere((p) => p['id'].toString() == key);
+
+                          // Optimistic UI update
+                          setState(() {
+                            if (wasLiked) {
+                              _likedPostIds.remove(key);
+                              if (postIndex != -1) {
+                                final current = (_posts[postIndex]['likeCount'] ?? 1) as num;
+                                _posts[postIndex]['likeCount'] = (current - 1).clamp(0, double.infinity).toInt();
+                                post['likeCount'] = _posts[postIndex]['likeCount'];
                               }
-                              if (_posts[postIndex]['likeCount'] < 0) _posts[postIndex]['likeCount'] = 0;
-                              post['likeCount'] = _posts[postIndex]['likeCount'];
-                            });
-                          }
+                            } else {
+                              _likedPostIds.add(key);
+                              if (postIndex != -1) {
+                                final current = (_posts[postIndex]['likeCount'] ?? 0) as num;
+                                _posts[postIndex]['likeCount'] = current.toInt() + 1;
+                                post['likeCount'] = _posts[postIndex]['likeCount'];
+                              }
+                            }
+                          });
+
+                          // Call home screen handler for local DB sync
                           widget.onPostAction(post, 'Like');
+
+                          // Call API with auth token
+                          final pid = post['id'] is int ? post['id'] as int : int.tryParse(post['id'].toString());
+                          if (pid != null) {
+                            try {
+                              final prefs = await SharedPreferences.getInstance();
+                              final token = prefs.getString('auth_token') ?? '';
+                              if (token.isNotEmpty) {
+                                final dio = Dio();
+                                dio.options.baseUrl = 'https://openzippers.com/api/v1/';
+                                dio.options.headers = {
+                                  'Accept': 'application/json',
+                                  'Authorization': 'Bearer $token',
+                                };
+                                final response = await dio.post(
+                                  'zippfans/likes/post',
+                                  data: {'post_id': pid},
+                                  options: Options(validateStatus: (s) => s != null && s < 500),
+                                );
+                                debugPrint('LIKE RESPONSE ${response.statusCode}: ${response.data}');
+                              }
+                            } catch (e) {
+                              debugPrint('Like API error: $e');
+                              // Rollback on error
+                              setState(() {
+                                if (wasLiked) {
+                                  _likedPostIds.add(key);
+                                } else {
+                                  _likedPostIds.remove(key);
+                                }
+                              });
+                            }
+                          }
                         },
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              _likedPostIds.contains("${post['title']}_${post['author']}")
+                              _likedPostIds.contains(post['id']?.toString() ?? '')
                                   ? Icons.favorite
                                   : Icons.favorite_border,
                               color: Colors.pink,
@@ -1510,22 +1627,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ],
                         ),
                       ),
-                      // Comments
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 14),
-                          const SizedBox(width: 2),
-                          Flexible(
-                            child: Text(
-                              "${_getCommentCount(post)}",
-                              style: const TextStyle(color: Colors.white, fontSize: 10),
-                              overflow: TextOverflow.ellipsis,
+// Comments
+                      GestureDetector(
+                        onTap: () => _openCommentsSheet(post),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 14),
+                            const SizedBox(width: 2),
+                            Flexible(
+                              child: Text(
+                                "${_getCommentCount(post)}",
+                                style: const TextStyle(color: Colors.white, fontSize: 10),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      // Rating
+// Rating
                       Builder(
                         builder: (context) {
                           final postId = post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()) ?? 0;
@@ -1575,30 +1695,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  onTap: () {
-                    final type = post['type'];
-                    if (type == 'Video' || type == 'Reel' || type == 'Reels' || type == 'Image') {
-                      // Navigator.push(
-                      //   context,
-                      //   // MaterialPageRoute(
-                      //   //   builder: (_) => ReelsScreen(
-                      //   //     posts: _filteredPosts,
-                      //   //     currentUser: widget.currentUser,
-                      //   //     users: widget.users,
-                      //   //     onUserTap: widget.onUserTap,
-                      //   //     onPostAction: widget.onPostAction,
-                      //   //     startPostId: post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()),
-                      //   //     readPosts: widget.readPosts,
-                      //   //     watchedPosts: widget.watchedPosts,
-                      //   //     showImages: true,
-                      //   //     enableComments: false,
-                      //   //   ),
-                      //   // ),
-                      // );
-                    } else {
-                      _showPostDetails(context, post);
-                    }
-                  },
+                  onTap: () => _showPostDetails(context, post),
                   child: Container(),
                 ),
               ),
@@ -1710,99 +1807,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 15),
           ],
           Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-            if (widget.cartItemsNotifier != null)
-              ValueListenableBuilder<List<Map<String, dynamic>>>(
-                valueListenable: widget.cartItemsNotifier!,
-                builder: (context, cartItems, child) {
-                  final cartItem = cartItems.firstWhere((item) => item['title'] == post['title'] && item['author'] == post['author'], orElse: () => <String, dynamic>{});
-                  final quantity = cartItem.isNotEmpty ? (cartItem['quantity'] as int? ?? 1) : 0;
-                  final bool isLiked = post['isLiked'] == true;
 
-                  final String postIdStr =
-                  (post['id'] ?? '').toString();
-
-                  final int commentCount =
-                  _getCommentCount(post);
-
-                  final double avgRating =
-                  ((post['averageRating'] ??
-                      post['average_rating'] ??
-                      post['avg_rating'] ??
-                      0) as num)
-                      .toDouble();
-                  if (quantity > 0) {
-                    return Row(children: [
-                      Stack(alignment: Alignment.center, children: [
-                        const Icon(Icons.shopping_cart, color: Color(0xFFDB2777), size: 22),
-                        // Positioned(right: -4, top: -4, child: Container(
-                        //   padding: const EdgeInsets.all(2),
-                        //   decoration: const BoxDecoration(color: Color(0xFFDB2777), shape: BoxShape.circle),
-                        //   constraints: const BoxConstraints(minWidth: 14, minHeight: 14),
-                        //   child: Text(quantity > 99 ? '99+' : '$quantity', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
-                        // )),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            16,
-                            10,
-                            16,
-                            10,
-                          ),
-                          child:Row(
-                            children: [
-                              _buildActionButton(
-                                icon: isLiked ? Icons.favorite :  Icons.favorite_border,
-                                color: _kPink,
-                                label: '${post['likeCount'] ?? 0}',
-                                onTap: () => widget.onPostAction(post, 'Like'),
-                              ),
-                              // Comment
-                              _buildActionButton(
-                                icon: Icons.chat_bubble_outline_rounded,
-                                color: _expandedPostIds.contains(postIdStr)
-                                    ? _kPink
-                                    : Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black87,
-                                label: '$commentCount',
-                                onTap: () => _toggleComments(postIdStr),
-                              ),
-
-                              // const Icon(
-                              //   Icons.star_border,
-                              //   color: Colors.white,
-                              // ),
-
-
-                              GestureDetector(
-                                onTap: () => _showRatingDialog(post),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.star,
-                                      color: Colors.amber,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      avgRating.round().toString(),
-                                      style: TextStyle(
-                                        color: Theme.of(context).textTheme.bodyMedium?.color,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ]),
-                      const SizedBox(width: 8),
-                    ]);
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
             Expanded(child: _buildFilteredText(post['title'] ?? context.tr.untitled, const TextStyle(fontSize: 22, fontWeight: FontWeight.bold), maxLines: 2)),
           ]),
           if (post['content'] != null && post['content'].toString().trim().isNotEmpty) ...[
@@ -1811,290 +1816,135 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ],
           const SizedBox(height: 20),
           const Divider(),
-          if (!_isVideoPlaying)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () {
-                      final key = "${post['title']}_${post['author']}";
-                      final wasLiked = _likedPostIds.contains(key);
-                      final postIndex = _posts.indexWhere((p) => p['id'] == post['id']);
-                      if (postIndex != -1) {
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+            child: Row(
+              children: [
+                // Like
+                GestureDetector(
+                  onTap: () async {
+                    final key = post['id']?.toString() ?? '';
+                    if (key.isEmpty) return;
+                    final wasLiked = _likedPostIds.contains(key);
+                    final postIndex = _posts.indexWhere((p) => p['id'].toString() == key);
+
+                    // Optimistic UI update
+                    setState(() {
+                      if (wasLiked) {
+                        _likedPostIds.remove(key);
+                        if (postIndex != -1) {
+                          final current = (_posts[postIndex]['likeCount'] ?? 1) as num;
+                          _posts[postIndex]['likeCount'] = (current - 1).clamp(0, double.infinity).toInt();
+                          post['likeCount'] = _posts[postIndex]['likeCount'];
+                        }
+                      } else {
+                        _likedPostIds.add(key);
+                        if (postIndex != -1) {
+                          final current = (_posts[postIndex]['likeCount'] ?? 0) as num;
+                          _posts[postIndex]['likeCount'] = current.toInt() + 1;
+                          post['likeCount'] = _posts[postIndex]['likeCount'];
+                        }
+                      }
+                    });
+
+                    widget.onPostAction(post, 'Like');
+
+                    final pid = post['id'] is int
+                        ? post['id'] as int
+                        : int.tryParse(post['id'].toString());
+
+                    debugPrint('=== LIKE pid=$pid wasLiked=$wasLiked');
+
+                    if (pid != null) {
+                      try {
+                        final prefs = await SharedPreferences.getInstance();
+                        final token = prefs.getString('auth_token') ?? '';
+                        debugPrint('=== LIKE TOKEN LENGTH: ${token.length}');
+
+                        final dio = Dio();
+                        dio.options.baseUrl = 'https://openzippers.com/api/v1/';
+                        dio.options.headers = {
+                          'Accept': 'application/json',
+                          'Authorization': 'Bearer $token',
+                        };
+
+                        debugPrint('=== LIKE BODY: {post_id: $pid}');
+
+                        final response = await dio.post(
+                          'zippfans/likes/post',
+                          data: {'post_id': pid},
+                          options: Options(
+                            validateStatus: (s) => s != null && s < 600,
+                          ),
+                        );
+
+                        debugPrint('=== LIKE STATUS: ${response.statusCode}');
+                        debugPrint('=== LIKE RESPONSE: ${response.data}');
+                      } catch (e) {
+                        debugPrint('=== LIKE EXCEPTION: $e');
                         setState(() {
                           if (wasLiked) {
-                            _likedPostIds.remove(key);
-                            _posts[postIndex]['likeCount'] = (_posts[postIndex]['likeCount'] ?? 0) - 1;
-                          } else {
                             _likedPostIds.add(key);
-                            _posts[postIndex]['likeCount'] = (_posts[postIndex]['likeCount'] ?? 0) + 1;
+                          } else {
+                            _likedPostIds.remove(key);
                           }
-                          if (_posts[postIndex]['likeCount'] < 0) _posts[postIndex]['likeCount'] = 0;
-                          post['likeCount'] = _posts[postIndex]['likeCount'];
                         });
                       }
-                      widget.onPostAction(post, 'Like');
-                    },
-                    child: Builder(
-                      builder: (context) {
-
-                        final int postId =
-                        post['id'] is int
-                            ? post['id']
-                            : int.tryParse(post['id'].toString()) ?? 0;
-
-                        final ratingAsync = ref.watch(
-                          ratingProvider(postId),
-                        );
-
-                        return ratingAsync.when(
-
-                          data: (RatingResponse ratingResponse) {
-
-                            final ratingData = ratingResponse.data;
-
-                            final double avg =
-                            (ratingData.averageRating ?? 0)
-                                .toDouble();
-
-                            final int total =
-                                ratingData.totalRatings ?? 0;
-
-                            final myRating =
-                                ratingData.userRating ??
-                                    post['my_rating'] ??
-                                    post['user_rating'] ??
-                                    0;
-
-                            return GestureDetector(
-
-                              onTap: () async {
-
-                                _showRatingDialog(post);
-
-                              },
-
-                              child: Row(
-
-                                mainAxisSize: MainAxisSize.min,
-
-                                children: [
-
-                                  Icon(
-
-                                    myRating > 0
-                                        ? Icons.star
-                                        : Icons.star_border,
-
-                                    color: Colors.amber,
-
-                                    size: 18,
-
-                                  ),
-
-                                  const SizedBox(width: 4),
-
-                                  Text(
-
-                                    (avg > 0)
-                                        ? avg.toStringAsFixed(1)
-                                        : "0.0",
-
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-
-                                  ),
-
-                                  const SizedBox(width: 3),
-
-                                  Text(
-
-                                    "($total)",
-
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 10,
-                                    ),
-
-                                  ),
-
-                                ],
-
-                              ),
-
-                            );
-
-                          },
-
-                          loading: () => Row(
-                            children: const [
-                              Icon(
-                                Icons.star_border,
-                                color: Colors.amber,
-                                size: 18,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                "0.0",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          error: (_, __) => Row(
-                            children: const [
-                              Icon(
-                                Icons.star_border,
-                                color: Colors.amber,
-                                size: 18,
-                              ),
-                              SizedBox(width: 4),
-                              Text(
-                                "0.0",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                        );
-
-                      },
+                    }
+                  },
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(
+                      _likedPostIds.contains(post['id']?.toString() ?? '') ? Icons.favorite : Icons.favorite_border,
+                      color: _kPink, size: 20,
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                      _openCommentsSheet(post);
-                    },
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.chat_bubble_outline, color: Colors.white70, size: 21),
-                        const SizedBox(width: 5),
-                        Text(
-                          "${_getCommentCount(post)}",
-                          style: const TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 24),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final rawPostId = post['id'];
-
-                      final int postId =
-                      rawPostId is int
-                          ? rawPostId
-                          : int.tryParse(
-                        rawPostId.toString(),
-                      ) ??
-                          0;
-                      final ratingAsync = ref.watch(ratingProvider(postId));
-
-                      return ratingAsync.when(
-
-                        data: (RatingResponse response) {
-
-                          final ratingData = response.data;
-
-                          final avg =
-                              ratingData.averageRating;
-
-                          final total =
-                              ratingData.totalRatings;
-
-                          final userRating =
-                              ratingData.userRating ?? 0;
-
-                          return GestureDetector(
-
-                            onTap: () => _showRatingDialog(post),
-
-                            child: Row(
-
-                              mainAxisSize: MainAxisSize.min,
-
-                              children: [
-
-                                Icon(
-
-                                  (userRating is num &&
-                                      userRating.toInt() > 0)
-                                      ? Icons.star
-                                      : Icons.star_border,
-
-                                  color: Colors.amber,
-
-                                  size: 18,
-
-                                ),
-
-                                const SizedBox(width: 4),
-
-                                Text(
-
-                                  avg.toStringAsFixed(1),
-
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-
-                                ),
-
-                                const SizedBox(width: 3),
-
-                                Text(
-
-                                  "($total)",
-
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                  ),
-
-                                ),
-
-                              ],
-
-                            ),
-
-                          );
-
-                        },
-
-                        loading: () => const SizedBox(
-                          width: 30,
-                          height: 18,
-                        ),
-
-                        error: (_, __) => const Icon(
-                          Icons.star_border,
-                          color: Colors.amber,
-                          size: 18,
-                        ),
-
+                    const SizedBox(width: 4),
+                    Text("${post['likeCount'] ?? 0}",
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
+                  ]),
+                ),
+                const SizedBox(width: 20),
+                // Comments
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openCommentsSheet(post);
+                  },
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(Icons.chat_bubble_outline, color: Theme.of(context).hintColor, size: 20),
+                    const SizedBox(width: 4),
+                    Text("${_getCommentCount(post)}",
+                        style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
+                  ]),
+                ),
+                const SizedBox(width: 20),
+                // Rating — single clean widget
+                Builder(builder: (context) {
+                  final int postId = post['id'] is int ? post['id'] : int.tryParse(post['id'].toString()) ?? 0;
+                  final ratingAsync = ref.watch(ratingProvider(postId));
+                  return ratingAsync.when(
+                    data: (r) {
+                      final avg = r.data.averageRating;
+                      final userRating = r.data.userRating ?? 0;
+                      return GestureDetector(
+                        onTap: () => _showRatingDialog(post),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(userRating > 0 ? Icons.star : Icons.star_border, color: Colors.amber, size: 20),
+                          const SizedBox(width: 4),
+                          Text(avg.toStringAsFixed(1),
+                              style: TextStyle(color: Theme.of(context).textTheme.bodyMedium?.color, fontSize: 13)),
+                        ]),
                       );
-
                     },
-
-                  ),
-                ],
-              ),
+                    loading: () => const SizedBox(width: 40, height: 20),
+                    error: (_, __) => GestureDetector(
+                      onTap: () => _showRatingDialog(post),
+                      child: const Icon(Icons.star_border, color: Colors.amber, size: 20),
+                    ),
+                  );
+                }),
+              ],
             ),
+          ),
           const Divider(),
           Padding(
             padding: const EdgeInsets.only(top: 8, bottom: 4),
@@ -2109,9 +1959,83 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             currentUser: widget.currentUser,
             users: widget.users,
             enableComments: true,
-            onPostAction: (p, a, {extraData}) {
+            onPostAction: (p, a, {extraData}) async {
+              if (a == 'SubmitComment' && extraData != null) {
+                final text = (extraData['text'] ?? '').toString().trim();
+                final parentId = extraData['parentId'];
+                if (text.isEmpty) return;
+                final postId = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString());
+                if (postId == null) return;
+                try {
+                  final prefs = await SharedPreferences.getInstance();
+                  final token = prefs.getString('auth_token') ?? '';
+                  if (token.isEmpty) return;
+                  final body = <String, dynamic>{
+                    'post_id': postId,
+                    'comment': text,
+                    if (parentId != null) 'parent_id': parentId,
+                  };
+                  final dio = Dio();
+                  dio.options.baseUrl = 'https://openzippers.com/api/v1/';
+                  dio.options.headers = {
+                    'Accept': 'application/json',
+                    'Authorization': 'Bearer $token',
+                  };
+                  final int parsedPostId = postId is int
+                      ? postId
+                      : int.tryParse(postId.toString()) ?? 0;
+
+                  debugPrint('DETAIL COMMENT BODY: post_id=$parsedPostId content=$text');
+
+                  final response = await dio.post(
+                    'zippfans/comments',
+                    data: {
+                      'post_id': parsedPostId,
+                      'content': text,
+                      if (parentId != null)
+                        'parent_id': parentId is int
+                            ? parentId
+                            : int.tryParse(parentId.toString()),
+                    },
+                    options: Options(validateStatus: (s) => s != null && s < 500),
+                  );
+
+                  debugPrint('DETAIL COMMENT RESPONSE ${response.statusCode}: ${response.data}');
+                  debugPrint('DETAIL COMMENT ${response.statusCode}: ${response.data}');
+                  if (response.statusCode == 200 || response.statusCode == 201) {
+                    final existing = List.from(p['comments'] as List? ?? []);
+                    final newComment = {
+                      'id': DateTime.now().millisecondsSinceEpoch,
+                      'author': widget.currentUser.name,
+                      'avatar': widget.currentUser.avatar,
+                      'text': text,
+                      'time': 'Just now',
+                      'parentId': parentId,
+                      'timestamp': DateTime.now(),
+                      'likes': <String>[],
+                    };
+                    existing.insert(0, newComment);
+                    p['comments'] = existing;
+                    p['commentsCount'] = (p['commentsCount'] is int ? p['commentsCount'] :
+                    int.tryParse(p['commentsCount']?.toString() ?? '0') ?? 0) + 1;
+                    p['comments_count'] = p['commentsCount'];
+                    final idx = _posts.indexWhere((pp) => pp['id'] == p['id']);
+                    if (idx != -1) {
+                      _posts[idx]['commentsCount'] = p['commentsCount'];
+                      _posts[idx]['comments'] = existing;
+                    }
+                    post['commentsCount'] = p['commentsCount'];
+                    post['comments_count'] = p['commentsCount'];
+                    post['comments'] = existing;
+                    if (setModalState != null) setModalState(() {}); else if (mounted) setState(() {});
+                  }
+                } catch (e) {
+                  debugPrint('Comment submit error: $e');
+                }
+                return;
+              }
               widget.onPostAction(p, a, extraData: extraData);
-              if (setModalState != null) setModalState(() {}); else setState(() {});
+              if (setModalState != null) setModalState(() {}); else if (mounted) setState(() {});
             },
             onUserTap: widget.onUserTap,
           ),
@@ -2553,7 +2477,53 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
     });
   }
+  Future<void> _loadPostsFromApiSilent() async {
+    try {
+      if (!mounted) return;
+      final authRepo = ref.read(authRepositoryProvider);
+      final username = effectiveUser.username;
+      if (username.isEmpty) return;
+      final apiResponse = await authRepo.getUserByUsername(username);
+      if (apiResponse.success && apiResponse.data != null && mounted) {
+        final posts = apiResponse.data!.posts ?? [];
+        final normalized = posts.map((p) {
+          final raw = Map<String, dynamic>.from(p as Map);
+          final map = PostHelper.normalizePost(raw);
+          map['id'] = raw['id'];
+          map['commentsCount'] = raw['comments_count'] ?? raw['commentsCount'] ?? 0;
+          map['likeCount'] = raw['likes_count'] ?? raw['likeCount'] ?? raw['like_count'] ?? 0;
+          map['imageUrl'] = raw['image'] ?? raw['imageUrl'] ?? raw['thumbnail'] ?? '';
+          map['filePath'] = raw['video_url'] ?? raw['audio_url'] ?? raw['literature_url'] ?? raw['image'] ?? '';
+          map['coverPath'] = raw['preview_url'] ?? raw['cover'] ?? raw['image'] ?? '';
+          map['is_liked'] = raw['is_liked'];
+          return map;
+        }).toList();
 
+        if (mounted) {
+          setState(() {
+            // Merge — don't replace
+            for (final updated in normalized) {
+              final id = updated['id']?.toString() ?? '';
+              if (id.isEmpty) continue;
+              final existingIdx = _posts.indexWhere(
+                    (p) => p['id']?.toString() == id,
+              );
+              if (existingIdx != -1) {
+                _posts[existingIdx]['commentsCount'] = updated['commentsCount'];
+                _posts[existingIdx]['likeCount'] = updated['likeCount'];
+              }
+              // Merge liked state from server
+              if (updated['is_liked'] == true || updated['is_liked'] == 1) {
+                _likedPostIds.add(id);
+              }
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('_loadPostsFromApiSilent error: $e');
+    }
+  }
   void _createAlbum(String title, String price, String? coverPath, bool isPrivate, List<Map<String, dynamic>> media) async {
     final newAlbum = {
       'author': widget.currentUser.username, 'title': title, 'price': price, 'isPrivate': isPrivate ? 1 : 0,

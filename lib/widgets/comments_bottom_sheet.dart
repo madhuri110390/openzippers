@@ -368,7 +368,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     });
 
     try {
-      final token = await _getToken();
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+
       if (token == null || token.isEmpty) {
         _rollback(tempId, isRoot);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(
@@ -377,27 +379,49 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         return;
       }
 
-      final body = {
-        'post_id': postId,
-        'comment': cleanText,
-        if (!isRoot) 'parent_id': parentId,
+      // Build auth-aware Dio + ApiClient
+      final dio = Dio();
+      dio.options.baseUrl = 'https://openzippers.com/api/v1/';
+      dio.options.headers = {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
       };
 
-      final response = await Dio().post(
-        'https://openzippers.com/api/v1/zippfans/comments',
-        data: body,
+      final int parsedPostId = postId is int
+          ? postId
+          : int.tryParse(postId.toString()) ?? 0;
+
+      if (parsedPostId == 0) {
+        _rollback(tempId, isRoot);
+        return;
+      }
+
+      final response = await dio.post(
+        'zippfans/comments',
+        data: {
+          'post_id': parsedPostId,
+          'content': cleanText,
+          if (!isRoot && parentId != null)
+            'parent_id': parentId is int
+                ? parentId
+                : int.tryParse(parentId.toString()),
+        },
         options: Options(
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
           validateStatus: (s) => s != null && s < 500,
         ),
       );
 
+      debugPrint('COMMENT BODY: post_id=$parsedPostId content=$cleanText');
+      debugPrint('COMMENT RESPONSE ${response.statusCode}: ${response.data}');
+
+      debugPrint('COMMENT RESPONSE ${response.statusCode}: ${response.data}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
-        dynamic rawSaved = response.data['data'] ?? response.data['comment'];
+        // Replace optimistic with real comment
+        dynamic rawSaved;
+        if (response.data is Map) {
+          rawSaved = response.data['data'] ?? response.data['comment'];
+        }
         final saved = rawSaved != null ? _normalizeComment(rawSaved) : <String, dynamic>{};
 
         setState(() {
@@ -409,10 +433,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           widget.post['commentsCount'] = _getDisplayCount();
         });
 
-        await _fetchCommentsFromApi(); // refresh from server
+        await _fetchCommentsFromApi();
       } else {
         _rollback(tempId, isRoot);
-        final msg = (response.data is Map) ? (response.data['message'] ?? 'Failed to post') : 'Error ${response.statusCode}';
+        final msg = response.data is Map
+            ? (response.data['message'] ?? response.data['errors']?.toString() ?? 'Failed to post')
+            : 'Error ${response.statusCode}';
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
@@ -577,6 +603,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       final text = (extraData['text'] ?? '').toString();
       final parentId = extraData['parentId'];
       _submitComment(text, parentId: parentId);
+      return; // ← don't pass to widget.onPostAction, it'll double-fire
     }
     widget.onPostAction(post, action, extraData: extraData);
   }

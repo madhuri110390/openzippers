@@ -453,23 +453,23 @@ class CommentSectionState extends State<CommentSection> {
                 ),
                 Row(
                   children: [
-                    Text(comment['time'] ?? "", style: TextStyle(fontSize: 11, color: Colors.white)),
+                    Text(comment['time'] ?? "", style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () => widget.onPostAction(widget.post, 'LikeComment', extraData: comment),
-                      child: Text(isLiked ? "Unlike" : "Like", 
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isLiked ? const Color(0xFFDB2777) : Colors.white)),
+                      child: Text(isLiked ? "Unlike" : "Like",
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isLiked ? const Color(0xFFDB2777) : Theme.of(context).hintColor)),
                     ),
                     const SizedBox(width: 12),
                     GestureDetector(
                       onTap: () => _handleReply(comment),
-                      child: Text("Reply", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.white)),
+                      child: Text("Reply", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).hintColor)),
                     ),
                     if (likesCount > 0) ...[
                       const Spacer(),
                       Icon(Icons.favorite, size: 12, color: const Color(0xFFDB2777)),
                       const SizedBox(width: 2),
-                      Text("$likesCount", style: TextStyle(fontSize: 11, color: Colors.white)),
+                      Text("$likesCount", style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
                     ],
                   ],
                 ),

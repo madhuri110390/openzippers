@@ -164,32 +164,20 @@ class RegisterViewModel extends StateNotifier<RegisterState> {
 /// from SharedPreferences into every request header.
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio();
-
+  dio.options.baseUrl = 'https://openzippers.com/api/v1/';
+  dio.options.headers = {'Accept': 'application/json'};
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
         final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('auth_token');
-        if (token != null && token.isNotEmpty) {
+        final token = prefs.getString('auth_token') ?? '';
+        if (token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
-        options.headers['Accept'] = 'application/json';
-        return handler.next(options);
+        handler.next(options);
       },
     ),
   );
-
-  // Logging interceptor for debug visibility
-  dio.interceptors.add(LogInterceptor(
-    request: true,
-    requestHeader: true,
-    requestBody: true,
-    responseHeader: false,
-    responseBody: true,
-    error: true,
-    logPrint: (log) => print(log),
-  ));
-
   return dio;
 });
 
