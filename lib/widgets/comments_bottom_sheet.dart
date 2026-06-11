@@ -42,6 +42,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     if (loaded > _serverCount) _serverCount = loaded;
     _fetchCommentsFromApi();
   }
+
+  // ── Fetch comments from API ────────────────────────────────────────────────
   Future<void> _fetchCommentsFromApi() async {
     final postId = widget.post['id'];
     if (postId == null) return;
@@ -54,7 +56,6 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       final token = await _getToken();
       debugPrint('=== FETCH COMMENTS pid=$pid');
 
-      // Try the endpoint that works — same base as post
       final response = await Dio().get(
         'https://openzippers.com/api/v1/zippfans/comments',
         queryParameters: {'post_id': pid},
@@ -77,14 +78,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = response.data;
         if (data is Map) {
-          // Try all possible shapes
           final d = data['data'];
           if (d is List) {
             rawList = d;
           } else if (d is Map) {
             rawList = d['comments'] as List? ??
                 d['data'] as List? ??
-                d['items'] as List? ?? [];
+                d['items'] as List? ??
+                [];
           } else {
             rawList = data['comments'] as List? ?? [];
           }
@@ -100,17 +101,36 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         rawList.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       );
 
-      final pending = _localComments.where((c) => c['_pending'] == true).toList();
-      final merged = [...pending, ...fetched];
-      final rootCount = merged.where((c) {
-        final pid = c['parentId'];
-        return pid == null || pid == 0 || pid == '0';
-      }).length;
-
       if (mounted) {
         setState(() {
-          _localComments = merged;
-          _serverCount = rootCount > _serverCount ? rootCount : _serverCount;
+          // Keep all local comments; only add truly new ones from server
+          final localIds =
+          _localComments.map((c) => c['id'].toString()).toSet();
+
+          final newFromServer = fetched
+              .where((c) => !localIds.contains(c['id'].toString()))
+              .toList();
+
+          _localComments = [..._localComments, ...newFromServer];
+
+          // Clear _pending flag for comments that the server now knows about
+          final serverIds =
+          fetched.map((c) => c['id'].toString()).toSet();
+          _localComments = _localComments.map((c) {
+            if (c['_pending'] == true &&
+                serverIds.contains(c['id'].toString())) {
+              return {...c, '_pending': false};
+            }
+            return c;
+          }).toList();
+
+          final rootCount = _localComments.where((c) {
+            final pid = c['parentId'];
+            return pid == null || pid == 0 || pid == '0';
+          }).length;
+
+          _serverCount =
+          rootCount > _serverCount ? rootCount : _serverCount;
           widget.post['comments'] = _localComments;
           widget.post['commentsCount'] = _getDisplayCount();
         });
@@ -121,112 +141,6 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-  // ── Fetch comments from API ────────────────────────────────────────────────
-  // Future<void> _fetchCommentsFromApi() async {
-  //   final postId = widget.post['id'];
-  //   if (postId == null) return;
-  //   final int? pid = postId is int ? postId : int.tryParse(postId.toString());
-  //   if (pid == null) return;
-  //
-  //   if (mounted) setState(() => _isLoading = true);
-  //
-  //   try {
-  //     final token = await _getToken();
-  //     var response = await Dio().get(
-  //       'https://openzippers.com/api/v1/zippfans/posts/$pid/comments',
-  //       options: Options(
-  //         headers: {
-  //           'Accept': 'application/json',
-  //           if (token != null && token.isNotEmpty)
-  //             'Authorization': 'Bearer $token',
-  //         },
-  //         validateStatus: (s) => s != null && s < 500,
-  //       ),
-  //     );
-  //
-  //     if (response.statusCode == 404) {
-  //       response = await Dio().get(
-  //         'https://openzippers.com/api/v1/zippfans/comments/$pid',
-  //         options: Options(
-  //           headers: {
-  //             'Accept': 'application/json',
-  //             if (token != null && token.isNotEmpty)
-  //               'Authorization': 'Bearer $token',
-  //           },
-  //           validateStatus: (s) => s != null && s < 500,
-  //         ),
-  //       );
-  //     }
-  //
-  //     if (!mounted) return;
-  //
-  //     final data = response.data;
-  //     final bool ok = (response.statusCode == 200 || response.statusCode == 201) &&
-  //         data != null;
-  //     if (ok) {
-  //       // Tolerate multiple response shapes:
-  //       //  - { data: [ ... ] }
-  //       //  - { data: { comments: [...] } }
-  //       //  - { data: { data: [...] } }   (Laravel pagination)
-  //       //  - { comments: [ ... ] }
-  //       List? rawList;
-  //       if (data is List) {
-  //         rawList = data;
-  //       } else if (data is Map) {
-  //         final dataField = data['data'];
-  //         if (dataField is List) {
-  //           rawList = dataField;
-  //         } else if (dataField is Map) {
-  //           if (dataField['comments'] is List) {
-  //             rawList = dataField['comments'] as List;
-  //           } else if (dataField['data'] is List) {
-  //             rawList = dataField['data'] as List;
-  //           } else if (dataField['items'] is List) {
-  //             rawList = dataField['items'] as List;
-  //           }
-  //         }
-  //         rawList ??= (data['comments'] is List)
-  //             ? data['comments'] as List
-  //             : (data['items'] is List)
-  //                 ? data['items'] as List
-  //                 : const [];
-  //       } else {
-  //         rawList = [];
-  //       }
-  //
-  //       debugPrint('CommentsBottomSheet: fetched ${rawList.length} raw comments');
-  //
-  //       final fetched = _flatten(
-  //         List<Map<String, dynamic>>.from(
-  //           rawList.map((e) => Map<String, dynamic>.from(e)),
-  //         ),
-  //       );
-  //
-  //       // Preserve optimistic (still-pending) local entries that the API
-  //       // hasn't echoed back yet, so user-typed comments don't disappear.
-  //       final pending = _localComments.where((c) => c['_pending'] == true).toList();
-  //       final merged = [...pending, ...fetched];
-  //
-  //       final rootCount = merged
-  //           .where((c) =>
-  //               c['parentId'] == null ||
-  //               c['parentId'] == 0 ||
-  //               c['parentId'] == '0')
-  //           .length;
-  //
-  //       setState(() {
-  //         _localComments = merged;
-  //         _serverCount = rootCount;
-  //         widget.post['comments'] = _localComments;
-  //         widget.post['commentsCount'] = rootCount;
-  //       });
-  //     }
-  //   } catch (e) {
-  //     debugPrint('CommentsBottomSheet fetch error: $e');
-  //   } finally {
-  //     if (mounted) setState(() => _isLoading = false);
-  //   }
-  // }
 
   // ── URL helper ─────────────────────────────────────────────────────────────
   static String _normalizeUrl(String url) {
@@ -242,7 +156,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   }
 
   // ── Comment normalization ──────────────────────────────────────────────────
-  Map<String, dynamic> _normalizeComment(dynamic raw, {dynamic forcedParentId}) {
+  Map<String, dynamic> _normalizeComment(dynamic raw,
+      {dynamic forcedParentId}) {
     if (raw is! Map) return {};
     final m = Map<String, dynamic>.from(raw);
 
@@ -260,10 +175,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final Map<String, dynamic> userMap =
     user is Map ? Map<String, dynamic>.from(user) : <String, dynamic>{};
     final String author =
-    (userMap['name'] ?? userMap['username'] ?? m['author'] ?? 'User').toString();
+    (userMap['name'] ?? userMap['username'] ?? m['author'] ?? 'User')
+        .toString();
 
     final String avatar = _normalizeUrl(
-      (userMap['avatar'] ?? userMap['avatar_url'] ?? m['avatar'] ?? '').toString(),
+      (userMap['avatar'] ?? userMap['avatar_url'] ?? m['avatar'] ?? '')
+          .toString(),
     );
 
     String time = (m['time'] ?? '').toString();
@@ -302,13 +219,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       'id': id ?? DateTime.now().microsecondsSinceEpoch,
       'author': author,
       'avatar': avatar,
-      'text': (
-          m['text'] ??
-              m['comment'] ??
-              m['content'] ??
-              m['body'] ??
-              ''
-      ).toString(),
+      'text': (m['text'] ?? m['comment'] ?? m['content'] ?? m['body'] ?? '')
+          .toString(),
       'time': time,
       'timestamp': timestamp,
       'parentId': parentId,
@@ -320,17 +232,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final List<Map<String, dynamic>> result = [];
     void walk(dynamic item, dynamic forcedParentId) {
       if (item is! Map) return;
-      final normalized = _normalizeComment(item, forcedParentId: forcedParentId);
+      final normalized =
+      _normalizeComment(item, forcedParentId: forcedParentId);
       if (normalized.isNotEmpty) {
-
-        final exists = result.any(
-              (e) => e['id'].toString() ==
-              normalized['id'].toString(),
-        );
-
-        if (!exists) {
-          result.add(normalized);
-        }
+        final exists = result
+            .any((e) => e['id'].toString() == normalized['id'].toString());
+        if (!exists) result.add(normalized);
       }
       final replies = item['replies'];
       if (replies is List) {
@@ -339,13 +246,13 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         }
       }
     }
+
     for (final i in rawItems) {
       walk(i, null);
     }
     return result;
   }
 
-  // Replace the existing _localRootCount
   int _localRootCount() => _localComments.where((c) {
     final pid = c['parentId'];
     return pid == null ||
@@ -358,6 +265,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final loaded = _localRootCount();
     return loaded > _serverCount ? loaded : _serverCount;
   }
+
+  // ── Submit comment ─────────────────────────────────────────────────────────
   Future<void> _submitComment(String text, {dynamic parentId}) async {
     final cleanText = text.trim();
     if (cleanText.isEmpty || _isSubmitting) return;
@@ -365,7 +274,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final postId = widget.post['id'];
     if (postId == null) return;
 
-    final bool isRoot = parentId == null || parentId == 0 || parentId == '0';
+    final bool isRoot =
+        parentId == null || parentId == 0 || parentId == '0';
 
     // Optimistic insert
     final tempId = DateTime.now().millisecondsSinceEpoch;
@@ -395,13 +305,14 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
       if (token == null || token.isEmpty) {
         _rollback(tempId, isRoot);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please log in to comment')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please log in to comment')),
+          );
+        }
         return;
       }
 
-      // Build auth-aware Dio + ApiClient
       final dio = Dio();
       dio.options.baseUrl = 'https://openzippers.com/api/v1/';
       dio.options.headers = {
@@ -409,9 +320,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         'Authorization': 'Bearer $token',
       };
 
-      final int parsedPostId = postId is int
-          ? postId
-          : int.tryParse(postId.toString()) ?? 0;
+      final int parsedPostId =
+      postId is int ? postId : int.tryParse(postId.toString()) ?? 0;
 
       if (parsedPostId == 0) {
         _rollback(tempId, isRoot);
@@ -428,183 +338,63 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                 ? parentId
                 : int.tryParse(parentId.toString()),
         }),
-        options: Options(
-          validateStatus: (s) => s != null && s < 500,
-        ),
+        options: Options(validateStatus: (s) => s != null && s < 500),
       );
 
       debugPrint('COMMENT BODY: post_id=$parsedPostId content=$cleanText');
-      debugPrint('COMMENT RESPONSE ${response.statusCode}: ${response.data}');
-
-      debugPrint('COMMENT RESPONSE ${response.statusCode}: ${response.data}');
+      debugPrint(
+          'COMMENT RESPONSE ${response.statusCode}: ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Replace optimistic with real comment
+        // Replace optimistic entry with real server data (or just clear _pending)
         dynamic rawSaved;
         if (response.data is Map) {
-          rawSaved = response.data['data'] ?? response.data['comment'];
+          rawSaved =
+              response.data['data'] ?? response.data['comment'];
         }
-        final saved = rawSaved != null ? _normalizeComment(rawSaved) : <String, dynamic>{};
+        final saved = rawSaved != null
+            ? _normalizeComment(rawSaved)
+            : <String, dynamic>{};
 
+        // ✅ NO _fetchCommentsFromApi() call here — that was wiping the comment
         setState(() {
-          final idx = _localComments.indexWhere((c) => c['id'] == tempId);
+          final idx =
+          _localComments.indexWhere((c) => c['id'] == tempId);
           if (idx != -1) {
-            _localComments[idx] = saved.isNotEmpty ? saved : {...optimistic, '_pending': false};
+            _localComments[idx] = saved.isNotEmpty
+                ? saved
+                : {...optimistic, '_pending': false};
           }
           widget.post['comments'] = _localComments;
           widget.post['commentsCount'] = _getDisplayCount();
         });
-
-        await _fetchCommentsFromApi();
       } else {
         _rollback(tempId, isRoot);
         final msg = response.data is Map
-            ? (response.data['message'] ?? response.data['errors']?.toString() ?? 'Failed to post')
+            ? (response.data['message'] ??
+            response.data['errors']?.toString() ??
+            'Failed to post')
             : 'Error ${response.statusCode}';
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(msg)));
+        }
       }
     } catch (e) {
       _rollback(tempId, isRoot);
       debugPrint('Comment submit error: $e');
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Network error. Please try again.')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Network error. Please try again.')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
-  // ── Submit comment (real POST) ─────────────────────────────────────────────
-  // Future<void> _submitComment(String text, {dynamic parentId}) async {
-  //   final cleanText = text.trim();
-  //   if (cleanText.isEmpty || _isSubmitting) return;
-  //
-  //   final postId = widget.post['id'];
-  //   if (postId == null) return;
-  //
-  //   final bool isRoot =
-  //       parentId == null || parentId == 0 || parentId == '0';
-  //
-  //   // Optimistic insert
-  //   final tempId = DateTime.now().millisecondsSinceEpoch;
-  //   final optimistic = <String, dynamic>{
-  //     'id': tempId,
-  //     'author': widget.currentUser.name,
-  //     'avatar': _normalizeUrl(widget.currentUser.avatar),
-  //     'text': cleanText,
-  //     'time': 'Just now',
-  //     'parentId': parentId,
-  //     'timestamp': DateTime.now(),
-  //     'likes': <String>[],
-  //     '_pending': true,
-  //   };
-  //
-  //   setState(() {
-  //     _isSubmitting = true;
-  //     _localComments.insert(0, optimistic);
-  //     if (isRoot) _serverCount += 1;
-  //     widget.post['comments'] = _localComments;
-  //     widget.post['commentsCount'] = _getDisplayCount();
-  //   });
-  //
-  //   try {
-  //     final token = await _getToken();
-  //     if (token == null || token.isEmpty) {
-  //       _rollback(tempId, isRoot);
-  //       if (mounted) {
-  //         ScaffoldMessenger.of(context).showSnackBar(
-  //           const SnackBar(content: Text('Please log in to comment')),
-  //         );
-  //       }
-  //       return;
-  //     }
-  //
-  //     // FIX: Use plain Map (JSON body) — NOT FormData with Content-Type: application/json
-  //     final Map<String, dynamic> body = {
-  //       'post_id': postId,
-  //       'comment': cleanText,
-  //       if (!isRoot) 'parent_id': parentId,
-  //     };
-  //
-  //     final response = await Dio().post(
-  //       'https://openzippers.com/api/v1/zippfans/comments',
-  //       data: body,                          // plain map → Dio sends as JSON
-  //       options: Options(
-  //         headers: {
-  //           'Accept': 'application/json',
-  //           'Content-Type': 'application/json', // now consistent with plain map
-  //           'Authorization': 'Bearer $token',
-  //         },
-  //         validateStatus: (s) => s != null && s < 500,
-  //       ),
-  //     );
-  //
-  //     final bool ok =
-  //     (response.statusCode == 200 || response.statusCode == 201);
-  //
-  //     if (ok) {
-  //
-  //       dynamic rawSaved;
-  //
-  //       if (response.data is Map) {
-  //         rawSaved =
-  //             response.data['data'] ??
-  //                 response.data['comment'];
-  //       }
-  //
-  //       final saved =
-  //       rawSaved != null
-  //           ? _normalizeComment(rawSaved)
-  //           : <String, dynamic>{};
-  //
-  //       setState(() {
-  //
-  //         final idx = _localComments.indexWhere(
-  //               (c) => c['id'] == tempId,
-  //         );
-  //
-  //         if (idx != -1) {
-  //
-  //           _localComments[idx] =
-  //           saved.isNotEmpty
-  //               ? saved
-  //               : {
-  //             ...optimistic,
-  //             '_pending': false,
-  //           };
-  //         }
-  //
-  //         widget.post['comments'] = _localComments;
-  //
-  //         widget.post['commentsCount'] =
-  //             _getDisplayCount();
-  //
-  //       });
-  //
-  //       await _fetchCommentsFromApi();
-  //
-  //     } else {
-  //       _rollback(tempId, isRoot);
-  //       final msg = (response.data is Map)
-  //           ? (response.data['message'] ?? 'Failed to post comment').toString()
-  //           : 'Failed (${response.statusCode})';
-  //       if (mounted) {
-  //         ScaffoldMessenger.of(context)
-  //             .showSnackBar(SnackBar(content: Text(msg)));
-  //       }
-  //     }
-  //   } catch (e) {
-  //     _rollback(tempId, isRoot);
-  //     debugPrint('Comment submit error: $e');
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(content: Text('Network error. Please try again.')),
-  //       );
-  //     }
-  //   } finally {
-  //     if (mounted) setState(() => _isSubmitting = false);
-  //   }
-  // }
 
+  // ── Rollback optimistic insert ─────────────────────────────────────────────
   void _rollback(int tempId, bool wasRoot) {
     if (!mounted) return;
     setState(() {
@@ -625,17 +415,37 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       final text = (extraData['text'] ?? '').toString();
       final parentId = extraData['parentId'];
       _submitComment(text, parentId: parentId);
-      return; // ← don't pass to widget.onPostAction, it'll double-fire
+      return;
     }
+
+    if (action == 'LikeComment' && extraData is Map<String, dynamic>) {
+      // Update _localComments in place so CommentSection sees the change
+      setState(() {
+        final idx = _localComments.indexWhere(
+                (c) => c['id'].toString() == extraData['id'].toString());
+        if (idx != -1) {
+          _localComments[idx] = Map<String, dynamic>.from(extraData);
+        }
+        widget.post['comments'] = _localComments;
+      });
+      // Propagate to HomeScreen for persistence
+      widget.onPostAction(post, action, extraData: extraData);
+      return;
+    }
+
     widget.onPostAction(post, action, extraData: extraData);
   }
 
-  // ── Post preview ──────────────────────────────────────────────────────────
+  // ── Post preview ───────────────────────────────────────────────────────────
   Widget _buildPostPreview(ThemeData theme) {
-    final postType = (widget.post['post_type'] ?? '').toString().toLowerCase();
+    final postType =
+    (widget.post['post_type'] ?? '').toString().toLowerCase();
     final imageUrl = _normalizeUrl(
-        (widget.post['imageUrl'] ?? widget.post['image'] ?? widget.post['coverPath'] ?? '').toString()
-    );
+        (widget.post['imageUrl'] ??
+            widget.post['image'] ??
+            widget.post['coverPath'] ??
+            '')
+            .toString());
     final title = (widget.post['title'] as String? ?? '').trim();
     final author = (widget.post['author'] as String? ?? '').trim();
     final ImageProvider? imageProvider =
@@ -660,8 +470,9 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   ? Image(
                 image: imageProvider,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) =>
-                    Icon(Icons.broken_image_outlined, color: theme.hintColor),
+                errorBuilder: (_, __, ___) => Icon(
+                    Icons.broken_image_outlined,
+                    color: theme.hintColor),
               )
                   : Icon(
                 postType == 'video'
@@ -690,7 +501,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(author,
-                        style: TextStyle(fontSize: 12, color: theme.hintColor),
+                        style:
+                        TextStyle(fontSize: 12, color: theme.hintColor),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                   ),
@@ -713,7 +525,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       body: Container(
         decoration: BoxDecoration(
           color: theme.cardColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius:
+          const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [

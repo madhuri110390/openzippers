@@ -90,17 +90,6 @@ class CommentSectionState extends State<CommentSection> {
     }
   }
 
-  // void _handleReply(Map<String, dynamic> comment) {
-  //   setState(() {
-  //     if (_replyingTo != null && _replyingTo!['id'] == comment['id']) {
-  //       _replyingTo = null;
-  //       _focusNode.unfocus();
-  //     } else {
-  //       _replyingTo = comment;
-  //       _focusNode.requestFocus();
-  //     }
-  //   });
-  // }
   void _handleReply(Map<String, dynamic> comment) {
     final currentId = int.tryParse(comment['id'].toString());
 
@@ -118,6 +107,7 @@ class CommentSectionState extends State<CommentSection> {
       }
     });
   }
+
   void _cancelReply() {
     setState(() => _replyingTo = null);
   }
@@ -128,11 +118,6 @@ class CommentSectionState extends State<CommentSection> {
 
     setState(() => _isSubmitting = true);
 
-    // widget.onPostAction(widget.post, 'SubmitComment', extraData: {
-    //   'text': text,
-    //   'parentId': _replyingTo?['id'],
-    //   'replyToUser': _replyingTo?['author'],
-    // });
     widget.onPostAction(
       widget.post,
       'SubmitComment',
@@ -141,8 +126,7 @@ class CommentSectionState extends State<CommentSection> {
         'parentId': int.tryParse(
           _replyingTo?['id']?.toString() ?? '',
         ),
-        'replyToUser':
-        _replyingTo?['author'] ??
+        'replyToUser': _replyingTo?['author'] ??
             _replyingTo?['user']?['name'] ??
             'User',
       },
@@ -158,35 +142,19 @@ class CommentSectionState extends State<CommentSection> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final rawComments =
-    (widget.post['comments'] as List? ?? [])
+    final rawComments = (widget.post['comments'] as List? ?? [])
         .where((e) => e != null)
         .whereType<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList();
 
-    // final Set<int> seenIds = {};
-    // final List<Map<String, dynamic>> comments = [];
-    // for (final comment in rawComments) {
-    //   final id = comment['id'] as int?;
-    //   if (id != null) {
-    //     if (!seenIds.contains(id)) {
-    //       seenIds.add(id);
-    //       comments.add(comment);
-    //     }
-    //   } else {
-    //     comments.add(comment);
-    //   }
-    // }
     final Set<int> seenIds = {};
     final List<Map<String, dynamic>> comments = [];
 
     for (final comment in rawComments) {
       final dynamic rawId = comment['id'];
-
-      final int? id = rawId is int
-          ? rawId
-          : int.tryParse(rawId?.toString() ?? '');
+      final int? id =
+      rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
 
       if (id != null) {
         if (!seenIds.contains(id)) {
@@ -200,7 +168,11 @@ class CommentSectionState extends State<CommentSection> {
 
     final rootComments = comments.where((c) {
       final parentId = c['parentId'] ?? c['parent_id'];
-      return parentId == null || parentId == 0 || parentId == '0' || parentId == '' || parentId == 'null';
+      return parentId == null ||
+          parentId == 0 ||
+          parentId == '0' ||
+          parentId == '' ||
+          parentId == 'null';
     }).toList();
 
     rootComments.sort((a, b) {
@@ -213,9 +185,14 @@ class CommentSectionState extends State<CommentSection> {
     final Map<int, List<Map<String, dynamic>>> groupedComments = {};
     for (final c in comments) {
       final parentId = c['parentId'] ?? c['parent_id'];
-      if (parentId == null || parentId == 0 || parentId == '0' || parentId == '' || parentId == 'null') continue;
+      if (parentId == null ||
+          parentId == 0 ||
+          parentId == '0' ||
+          parentId == '' ||
+          parentId == 'null') continue;
 
-      int? pid = parentId is int ? parentId : int.tryParse(parentId.toString());
+      int? pid =
+      parentId is int ? parentId : int.tryParse(parentId.toString());
       if (pid != null) {
         groupedComments.putIfAbsent(pid, () => []).add(c);
       }
@@ -223,13 +200,16 @@ class CommentSectionState extends State<CommentSection> {
 
     return LayoutBuilder(builder: (context, constraints) {
       final hasBoundedHeight = constraints.maxHeight != double.infinity;
-      
+
       final listView = ListView.builder(
         controller: widget.scrollController,
         shrinkWrap: !hasBoundedHeight,
-        physics: hasBoundedHeight ? const AlwaysScrollableScrollPhysics() : const NeverScrollableScrollPhysics(),
+        physics: hasBoundedHeight
+            ? const AlwaysScrollableScrollPhysics()
+            : const NeverScrollableScrollPhysics(),
         padding: const EdgeInsets.only(bottom: 16),
-        itemCount: (widget.header != null ? 1 : 0) + rootComments.length,
+        itemCount:
+        (widget.header != null ? 1 : 0) + rootComments.length,
         itemBuilder: (context, index) {
           if (widget.header != null) {
             if (index == 0) return widget.header!;
@@ -256,9 +236,11 @@ class CommentSectionState extends State<CommentSection> {
   Widget _buildInputArea(ThemeData theme) {
     return Container(
       padding: EdgeInsets.only(
-        left: 12, right: 12, top: 8, 
-        bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 8 : 16
-      ),
+          left: 12,
+          right: 12,
+          top: 8,
+          bottom:
+          MediaQuery.of(context).viewInsets.bottom > 0 ? 8 : 16),
       decoration: BoxDecoration(
         color: theme.cardColor,
         border: Border(top: BorderSide(color: theme.dividerColor)),
@@ -273,9 +255,12 @@ class CommentSectionState extends State<CommentSection> {
                 children: [
                   Flexible(
                     child: Text(
-                        "${context.tr.replyingTo} ${_replyingTo?['author'] ?? _replyingTo?['user']?['name'] ?? 'User'}",
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFFDB2777))),
+                      "${context.tr.replyingTo} ${_replyingTo?['author'] ?? _replyingTo?['user']?['name'] ?? 'User'}",
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 12, color: Color(0xFFDB2777)),
+                    ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
@@ -293,12 +278,13 @@ class CommentSectionState extends State<CommentSection> {
               Builder(builder: (context) {
                 ImageProvider? imageProvider;
                 String? avatar = widget.currentUser.avatar;
-                
+
                 if (avatar == null || avatar.isEmpty) {
-                   try {
-                     final found = widget.users.firstWhere((u) => u.username == widget.currentUser.username);
-                     avatar = found.avatar;
-                   } catch (_) {}
+                  try {
+                    final found = widget.users.firstWhere(
+                            (u) => u.username == widget.currentUser.username);
+                    avatar = found.avatar;
+                  } catch (_) {}
                 }
 
                 if (avatar != null && avatar.isNotEmpty) {
@@ -315,7 +301,10 @@ class CommentSectionState extends State<CommentSection> {
                   radius: 18,
                   backgroundColor: theme.dividerColor,
                   backgroundImage: imageProvider,
-                  child: imageProvider == null ? const Icon(Icons.person, color: Color(0xFFDB2777)) : null,
+                  child: imageProvider == null
+                      ? const Icon(Icons.person,
+                      color: Color(0xFFDB2777))
+                      : null,
                 );
               }),
               const SizedBox(width: 12),
@@ -331,16 +320,24 @@ class CommentSectionState extends State<CommentSection> {
                         ? context.tr.replyToAuthor(
                       (_replyingTo?['author'] ??
                           _replyingTo?['user']?['name'] ??
-                          'User').toString(),
+                          'User')
+                          .toString(),
                     )
                         : context.tr.writeSomething,
-                    hintStyle: TextStyle(color: theme.hintColor, fontSize: 13),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                    hintStyle: TextStyle(
+                        color: theme.hintColor, fontSize: 13),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none),
                     filled: true,
                     fillColor: theme.scaffoldBackgroundColor,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
                     suffixIcon: _hasText
-                        ? IconButton(icon: const Icon(Icons.send, color: Color(0xFFDB2777)), onPressed: _submitComment)
+                        ? IconButton(
+                        icon: const Icon(Icons.send,
+                            color: Color(0xFFDB2777)),
+                        onPressed: _submitComment)
                         : null,
                   ),
                 ),
@@ -363,9 +360,8 @@ class CommentSectionState extends State<CommentSection> {
           ? comment['id']
           : int.tryParse(comment['id']?.toString() ?? '');
 
-      final replies = pid != null
-          ? (groupedComments[pid] ?? [])
-          : [];
+      final replies =
+      pid != null ? (groupedComments[pid] ?? []) : [];
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,96 +384,151 @@ class CommentSectionState extends State<CommentSection> {
         ],
       );
     } catch (e, s) {
-      debugPrint('COMMENT TREE ERROR');
-      debugPrint(comment.toString());
-      debugPrint(e.toString());
-      debugPrint(s.toString());
-
+      debugPrint('COMMENT TREE ERROR: $e\n$s');
       return const SizedBox();
     }
   }
 
-  Widget _buildCommentRow(Map<String, dynamic> comment, ThemeData theme, {int depth = 0}) {
-    final authorName =
-        comment['author'] ??
-            comment['user']?['name'];
-            'Unknown User';
-    final commentText = comment['text'] ?? "";
-    final isLiked = (comment['likes'] as List?)?.contains(widget.currentUser.username) ?? false;
-    final likesCount = (comment['likes'] as List?)?.length ?? 0;
-    final avatar =
-        comment['avatar'] ??
-            comment['user']?['avatar'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: () {
-               if (widget.onUserTap != null) {
-                 try {
-                   final user = widget.users.firstWhere((u) => u.name == authorName || u.username == authorName);
-                   widget.onUserTap!(user);
-                 } catch (_) {}
-               }
-            },
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: theme.dividerColor,
-              backgroundImage: avatar is String &&
-                  avatar.isNotEmpty &&
-                  avatar.startsWith('http')
-                  ? NetworkImage(avatar)
-                  : null,
-              child: (comment['avatar'] == null || comment['avatar'].toString().isEmpty)
-                  ? Text(authorName.isNotEmpty ? authorName[0].toUpperCase() : "?") : null,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(color: theme.scaffoldBackgroundColor, borderRadius: BorderRadius.circular(12)),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(authorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFDB2777))),
-                      const SizedBox(height: 2),
-                      ExpandableCommentText(text: commentText, style: const TextStyle(fontSize: 13)),
-                    ],
-                  ),
+  // ── Comment row — wrapped in StatefulBuilder for instant like toggle ───────
+  Widget _buildCommentRow(Map<String, dynamic> comment, ThemeData theme,
+      {int depth = 0}) {
+    return StatefulBuilder(
+      builder: (context, setRowState) {
+        // FIX: was semicolon-terminated — 'Unknown User' was dead unreachable code
+        // authorName was always null → blank name + wrong avatar initial
+        final authorName = (comment['author'] ??
+            comment['user']?['name'] ??
+            'Unknown User')
+            .toString();
+
+        final commentText = comment['text'] ?? '';
+        final isLiked =
+            (comment['likes'] as List?)
+                ?.contains(widget.currentUser.username) ??
+                false;
+        final likesCount = (comment['likes'] as List?)?.length ?? 0;
+        final avatar =
+            comment['avatar'] ?? comment['user']?['avatar'];
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  if (widget.onUserTap != null) {
+                    try {
+                      final user = widget.users.firstWhere(
+                              (u) =>
+                          u.name == authorName ||
+                              u.username == authorName);
+                      widget.onUserTap!(user);
+                    } catch (_) {}
+                  }
+                },
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: theme.dividerColor,
+                  backgroundImage: avatar is String &&
+                      avatar.isNotEmpty &&
+                      avatar.startsWith('http')
+                      ? NetworkImage(avatar)
+                      : null,
+                  child: (avatar == null || avatar.toString().isEmpty)
+                      ? Text(authorName.isNotEmpty
+                      ? authorName[0].toUpperCase()
+                      : '?')
+                      : null,
                 ),
-                Row(
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(comment['time'] ?? "", style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () => widget.onPostAction(widget.post, 'LikeComment', extraData: comment),
-                      child: Text(isLiked ? "Unlike" : "Like",
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isLiked ? const Color(0xFFDB2777) : Theme.of(context).hintColor)),
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                          color: theme.scaffoldBackgroundColor,
+                          borderRadius: BorderRadius.circular(12)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(authorName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Color(0xFFDB2777))),
+                          const SizedBox(height: 2),
+                          ExpandableCommentText(
+                              text: commentText,
+                              style: const TextStyle(fontSize: 13)),
+                        ],
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    GestureDetector(
-                      onTap: () => _handleReply(comment),
-                      child: Text("Reply", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).hintColor)),
+                    Row(
+                      children: [
+                        Text(comment['time'] ?? '',
+                            style: TextStyle(
+                                fontSize: 11, color: theme.hintColor)),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () {
+                            // Optimistic local toggle for instant feedback
+                            final likes = List<String>.from(
+                                comment['likes'] ?? []);
+                            final username =
+                                widget.currentUser.username;
+                            if (likes.contains(username)) {
+                              likes.remove(username);
+                            } else {
+                              likes.add(username);
+                            }
+                            // Update in-place so StatefulBuilder repaints
+                            setRowState(() => comment['likes'] = likes);
+                            // Propagate up for persistence
+                            widget.onPostAction(
+                                widget.post, 'LikeComment',
+                                extraData: comment);
+                          },
+                          child: Text(
+                            isLiked ? 'Unlike' : 'Like',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isLiked
+                                    ? const Color(0xFFDB2777)
+                                    : theme.hintColor),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        GestureDetector(
+                          onTap: () => _handleReply(comment),
+                          child: Text('Reply',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.hintColor)),
+                        ),
+                        if (likesCount > 0) ...[
+                          const Spacer(),
+                          const Icon(Icons.favorite,
+                              size: 12, color: Color(0xFFDB2777)),
+                          const SizedBox(width: 2),
+                          Text('$likesCount',
+                              style: TextStyle(
+                                  fontSize: 11, color: theme.hintColor)),
+                        ],
+                      ],
                     ),
-                    if (likesCount > 0) ...[
-                      const Spacer(),
-                      Icon(Icons.favorite, size: 12, color: const Color(0xFFDB2777)),
-                      const SizedBox(width: 2),
-                      Text("$likesCount", style: TextStyle(fontSize: 11, color: Theme.of(context).hintColor)),
-                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -486,10 +537,12 @@ class ExpandableCommentText extends StatefulWidget {
   final String text;
   final TextStyle? style;
 
-  const ExpandableCommentText({super.key, required this.text, this.style});
+  const ExpandableCommentText(
+      {super.key, required this.text, this.style});
 
   @override
-  State<ExpandableCommentText> createState() => _ExpandableCommentTextState();
+  State<ExpandableCommentText> createState() =>
+      _ExpandableCommentTextState();
 }
 
 class _ExpandableCommentTextState extends State<ExpandableCommentText> {
@@ -515,11 +568,18 @@ class _ExpandableCommentTextState extends State<ExpandableCommentText> {
                 widget.text,
                 style: widget.style,
                 maxLines: _isExpanded ? null : 3,
-                overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                overflow: _isExpanded
+                    ? TextOverflow.visible
+                    : TextOverflow.ellipsis,
               ),
               Text(
-                _isExpanded ? context.tr.showLess : context.tr.showMore,
-                style: const TextStyle(color: Color(0xFFDB2777), fontSize: 11, fontWeight: FontWeight.bold),
+                _isExpanded
+                    ? context.tr.showLess
+                    : context.tr.showMore,
+                style: const TextStyle(
+                    color: Color(0xFFDB2777),
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
               ),
             ],
           ),
