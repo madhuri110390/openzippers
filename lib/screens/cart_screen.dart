@@ -40,6 +40,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   int _lastCartItemCount = 0;
   bool _paymentCompleted = false;
 
+  // Optimistic local removal — holds postIds removed by user before API is ready
+  final Set<int> _removedPostIds = {};
+
   // ── Price helpers ──────────────────────────────────────────────────────────
   double _parsePrice(dynamic priceValue) {
     if (priceValue == null) return 0.0;
@@ -247,7 +250,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       'title': item.title,
       'price': item.price,
       'author': item.authorName,
-      'image': item.authorAvatar, // avatar used as thumbnail
+      'image': item.authorAvatar,
     };
   }
 
@@ -286,25 +289,30 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(color: _kPink),
         ),
-        error: (e, _) => Center(
-          child: Text(
-            'Error: $e',
-            style: const TextStyle(color: Colors.white70),
-          ),
-        ),
+        // ── FIX: handle 400 / any error gracefully as empty cart ──────────
+        error: (e, _) => _buildEmptyCart(),
         data: (cartResponse) {
-          // Access items via CartResponse → CartData → CartSummary → items
           final summary = cartResponse.data.data;
-          final cartItems = summary.items; // List<CartItem>
+
+          // ── FIX: filter out optimistically removed items ────────────────
+          final cartItems = summary.items
+              .where((item) => !_removedPostIds.contains(item.postId))
+              .toList();
 
           if (cartItems.isEmpty) return _buildEmptyCart();
 
           final mapped = cartItems.map(_cartItemToMap).toList();
 
-          // Use server-provided totals from CartSummary
-          final subtotal = summary.subtotal;
-          final tax = summary.taxAmount;
-          final total = summary.total;
+          // Recalculate totals from visible items when some are removed locally
+          final visibleSubtotal = _removedPostIds.isEmpty
+              ? summary.subtotal
+              : cartItems.fold(0.0, (s, i) => s + _parsePrice(i.price));
+          final visibleTax = _removedPostIds.isEmpty
+              ? summary.taxAmount
+              : visibleSubtotal * 0.18;
+          final visibleTotal = _removedPostIds.isEmpty
+              ? summary.total
+              : visibleSubtotal + visibleTax;
 
           // Availability check
           if (widget.validateItemExists != null &&
@@ -317,7 +325,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
           return Column(
             children: [
-              // Item count subtitle
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                 child: Align(
@@ -328,8 +335,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                 ),
               ),
-
-              // Items list
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -339,9 +344,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       _buildCartItem(mapped, index),
                 ),
               ),
-
-              // Order summary (uses server values)
-              _buildOrderSummary(subtotal, tax, total, mapped),
+              _buildOrderSummary(
+                  visibleSubtotal, visibleTax, visibleTotal, mapped),
             ],
           );
         },
@@ -402,9 +406,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       ),
       child: Row(
         children: [
-          // Thumbnail
           ClipRRect(
-            borderRadius: const BorderRadius.horizontal(left: Radius.circular(14)),
+            borderRadius:
+            const BorderRadius.horizontal(left: Radius.circular(14)),
             child: Container(
               width: 80,
               height: 80,
@@ -418,8 +422,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   : null,
             ),
           ),
-
-          // Info
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
@@ -432,7 +434,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       color: isAvailable ? Colors.white : Colors.white38,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      decoration: isAvailable ? null : TextDecoration.lineThrough,
+                      decoration:
+                      isAvailable ? null : TextDecoration.lineThrough,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -452,8 +455,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
             ),
           ),
-
-          // Price + Remove
           Padding(
             padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
             child: Column(
@@ -465,7 +466,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     color: isAvailable ? _kPink : Colors.white38,
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
-                    decoration: isAvailable ? null : TextDecoration.lineThrough,
+                    decoration:
+                    isAvailable ? null : TextDecoration.lineThrough,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -522,18 +524,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child:
-            const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child: const Text('Cancel',
+                style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
             onPressed: () {
-              widget.onRemove?.call(index);
-              ref.invalidate(cartProvider);
               Navigator.pop(context);
+
+              final postId = item['post_id'] as int?;
+              if (postId != null) {
+                // ── FIX: optimistic local removal, no API call / no invalidate ──
+                setState(() => _removedPostIds.add(postId));
+              }
+
+              // Notify parent if callback provided
+              widget.onRemove?.call(index);
             },
             child: const Text('Remove',
-                style: TextStyle(
-                    color: _kPink, fontWeight: FontWeight.bold)),
+                style:
+                TextStyle(color: _kPink, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -558,7 +567,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Row(
             children: const [
               Icon(Icons.shopping_cart_outlined, color: _kPink, size: 18),
@@ -576,16 +584,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           const SizedBox(height: 14),
           const Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 14),
-
-          // Subtotal
           _summaryRow(
             'Subtotal',
             '\$${subtotal.toStringAsFixed(2)}',
             valueColor: Colors.white,
           ),
           const SizedBox(height: 8),
-
-          // Tax
           _summaryRow(
             'Tax (18.00%)',
             '\$${tax.toStringAsFixed(2)}',
@@ -594,8 +598,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           const SizedBox(height: 14),
           const Divider(color: _kCardBorder, height: 1),
           const SizedBox(height: 14),
-
-          // Total
           _summaryRow(
             'Total',
             '\$${total.toStringAsFixed(2)}',
@@ -607,8 +609,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             valueSize: 18,
           ),
           const SizedBox(height: 18),
-
-          // Checkout button
           SizedBox(
             width: double.infinity,
             height: 52,

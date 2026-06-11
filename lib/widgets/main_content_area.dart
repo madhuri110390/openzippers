@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart' as widgets;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
+import '../providers/block_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/rating_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1199,7 +1200,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         const SizedBox(width: 8),
         Expanded(
           child: _buildHeaderTab(
-            icon: Icons.add_circle_outline,
+            icon: Icons.edit_outlined,
             label: context.tr.createPost,
             isActive: false,
             onTap: _navigateToCreatePost,
@@ -1355,8 +1356,67 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  onSelected: (val) {
-                    // existing code
+                  onSelected: (val) async {
+                    final author = _getAuthor(post);
+                    switch (val) {
+                      case 'share':
+                        _handleShare(post);
+                        break;
+
+                      case 'bookmark':
+                        widget.onPostAction(post, 'ToggleBookmark');
+                        break;
+
+                      case 'report':
+                        _showReportDialog(post);
+                        break;
+
+                      case 'edit':
+                        _handleEditPost(post);
+                        break;
+
+                      case 'delete':
+                        widget.onPostDeleted(post);
+                        break;
+
+                      case 'unfollow':
+                        setState(() => _unfollowedAuthors.add(
+                            post['author']?.toString().trim() ?? ''));
+                        widget.onUserAction?.call(author, 'Unfollow');
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Unfollowed ${author.name}')));
+                        break;
+
+                      case 'block':
+                      // Call blockProvider directly for instant UI feedback
+                        final userId = author.id;
+                        if (userId != null) {
+                          try {
+                            final res = await ref
+                                .read(blockProvider.notifier)
+                                .toggleBlock(userId);
+                            if (res != null && mounted) {
+                              // Remove their posts from feed instantly
+                              setState(() => _unfollowedAuthors.add(
+                                  post['author']?.toString().trim() ?? ''));
+                              widget.onUserAction?.call(author, 'Block');
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(res.message)));
+                            }
+                          } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Error: $e')));
+                          }
+                        } else {
+                          // fallback if no server id
+                          widget.onUserAction?.call(author, 'Block');
+                          setState(() => _unfollowedAuthors.add(
+                              post['author']?.toString().trim() ?? ''));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('${author.name} blocked')));
+                        }
+                        break;
+                    }
                   },
                   itemBuilder: (context) => [
                     const PopupMenuItem<String>(

@@ -9,8 +9,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/location_models.dart';
 import '../models/rating_response.dart';
+import '../providers/block_provider.dart';
 import '../providers/connections_provider.dart';
 import '../providers/delete_post_provider.dart';
+import '../providers/follow_provider.dart';
 import '../providers/rating_provider.dart';
 import '../viewmodels/delete_post_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
@@ -116,6 +118,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final Set<String> _failedMediaUrls = {};
   String _followerCount = "0";
   String _followingCount = "0";
+  bool? _isFollowingOverride;
+  bool _isFollowLoading = false;
+  bool? _isBlockedOverride;
+  bool _isBlockLoading = false;
 
   MockUser? _localUserOverride;
 
@@ -142,7 +148,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return effectiveUser.username == widget.currentUser.username;
   }
 
-  bool get isFollowing => effectiveUser.type == 'following';
+  bool get isFollowing =>
+      _isFollowingOverride ?? effectiveUser.type == 'following';
 
   @override
   void initState() {
@@ -245,24 +252,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
+// ── REPLACE _fetchConnectionCounts in profile_screen.dart ──────────────────
+
   Future<void> _fetchConnectionCounts() async {
     try {
       final username = effectiveUser.username;
       if (username.isEmpty) return;
+
+      // Fetch this profile's connection counts
       final response = await ref.read(
         connectionsProvider(username).future,
       );
       if (!mounted) return;
+
+      // Fetch current user's following list to check if WE follow this profile
+      final currentUserConnections = await ref.read(
+        connectionsProvider(widget.currentUser.username).future,
+      );
+      if (!mounted) return;
+
+      // Am I (currentUser) following this profile?
+      final amFollowing = currentUserConnections.data.following
+          .any((u) => u.id == effectiveUser.id);
+
+      // Is this profile blocked by me?
+      final isBlocked = currentUserConnections.data.blocked
+          .any((u) => u.id == effectiveUser.id);
+
       setState(() {
         _followerCount = response.data.counts.followers.toString();
         _followingCount = response.data.counts.following.toString();
+        // Only set if user hasn't manually toggled yet
+        if (_isFollowingOverride == null) {
+          _isFollowingOverride = amFollowing;
+        }
+        if (_isBlockedOverride == null && isBlocked) {
+          _isBlockedOverride = true;
+        }
       });
     } catch (e) {
       debugPrint('_fetchConnectionCounts error: $e');
-      if (mounted) setState(() {
-        _followerCount = widget.followerCount;
-        _followingCount = widget.followingCount;
-      });
+      if (mounted) {
+        setState(() {
+          _followerCount = widget.followerCount;
+          _followingCount = widget.followingCount;
+        });
+      }
     }
   }
   Future<void> _resolveLocationsUpdates(int? cId, int? sId, int? cityId) async {
@@ -332,6 +367,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (mounted) {
           setState(() {
             _localUserOverride = effectiveUser.copyWith(
+              id: user.id,          // ← ADD
               name: user.name,
               username: user.username,
               isArtist: user.isArtist ?? false,
@@ -498,9 +534,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (mounted) {
           setState(() {
             _localUserOverride = effectiveUser.copyWith(
+              id: user.id,          // ← ADD THIS
               name: user.name,
               username: user.username,
-              isArtist: user.isArtist ?? false,
               avatar: user.avatarUrl ?? effectiveUser.avatar,
               coverImage: user.coverImageUrl ?? effectiveUser.coverImage,
               gender: user.gender ?? effectiveUser.gender,
@@ -906,7 +942,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                       child: PopupMenuButton<String>(
-                        onSelected: (value) { if (value == 'block') widget.onUserAction?.call(effectiveUser, 'Block'); },
+                        onSelected: (value) async {
+                          if (value == 'block') {
+                            final userId = effectiveUser.id;
+                            if (userId == null) {
+                              widget.onUserAction?.call(effectiveUser, 'Block');
+                              return;
+                            }
+                            setState(() => _isBlockLoading = true);
+                            try {
+                              final res = await ref.read(blockProvider.notifier).toggleBlock(userId);
+                              if (res != null && mounted) {
+                                setState(() => _isBlockedOverride = res.data.isBlocked);
+                                widget.onUserAction?.call(effectiveUser, res.data.isBlocked ? 'Block' : 'Unblock');
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.message)));
+                              }
+                            } catch (e) {
+                              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                            } finally {
+                              if (mounted) setState(() => _isBlockLoading = false);
+                            }
+                          }
+                        },
                         icon: Icon(Icons.more_vert, color: theme.brightness == Brightness.dark ? Colors.white : Colors.black, size: 24),
                         itemBuilder: (context) => [
                           PopupMenuItem(value: 'block', child: Row(children: [
@@ -1079,23 +1136,73 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             if (!isMe && !effectiveUser.isSubscribed)
-              ElevatedButton(
-                onPressed: () async {
-                  if (widget.onUserAction != null) {
-                    await widget.onUserAction!(effectiveUser, isFollowing ? 'Unfollow' : 'Follow');
-                    await _refreshUserData();
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isFollowing ? (theme.brightness == Brightness.dark ? const Color(0xFF334155) : Colors.grey[200]) : const Color(0xFFDB2777),
-                  foregroundColor: isFollowing ? (theme.brightness == Brightness.dark ? Colors.white : Colors.black87) : Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  minimumSize: const Size(0, 30),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-                child: Text(isFollowing ? context.tr.following : context.tr.follow, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-              ),
+    ElevatedButton(
+    onPressed: _isFollowLoading
+    ? null
+        : () async {
+    final userId = effectiveUser.id;
+    if (userId == null) return;
+    setState(() => _isFollowLoading = true);
+    try {
+    final res = await ref
+        .read(followProvider.notifier)
+        .toggleFollow(userId);
+    if (res != null && mounted) {
+    setState(() {
+    _isFollowingOverride = res.data.isFollowing;
+    // update follower count instantly
+    final current = int.tryParse(_followerCount) ?? 0;
+    _followerCount = res.data.isFollowing
+    ? (current + 1).toString()
+        : (current - 1).clamp(0, 999999).toString();
+    });
+    // also notify parent so connections screen stays in sync
+    widget.onUserAction?.call(
+    effectiveUser,
+    res.data.isFollowing ? 'Follow' : 'Unfollow',
+    );
+    ref.invalidate(connectionsProvider(widget.currentUser.username));
+    ref.invalidate(connectionsProvider(effectiveUser.username));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    content: Text(res.data.isFollowing
+    ? 'Followed successfully'
+        : 'Unfollowed successfully'),
+    ));
+    }
+    } catch (e) {
+    debugPrint('Profile follow error: $e');
+    if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Error: $e')));
+    }
+    } finally {
+    if (mounted) setState(() => _isFollowLoading = false);
+    }
+    },
+    style: ElevatedButton.styleFrom(
+    backgroundColor: _isFollowLoading
+    ? Colors.grey.shade700
+        : isFollowing
+    ? (theme.brightness == Brightness.dark ? const Color(0xFF334155) : Colors.grey[200])
+        : const Color(0xFFDB2777),
+    foregroundColor: isFollowing
+    ? (theme.brightness == Brightness.dark ? Colors.white : Colors.black87)
+        : Colors.white,
+    elevation: 0,
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    minimumSize: const Size(0, 30),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    ),
+    child: _isFollowLoading
+    ? const SizedBox(
+    width: 14,
+    height: 14,
+    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+        : Text(
+    isFollowing ? context.tr.following : context.tr.follow,
+    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+    ),
+
             IconButton(
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
@@ -1165,54 +1272,103 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (effectiveUser.isArtist)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(children: [
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      if (widget.onUserAction != null) {
-                        await widget.onUserAction!(effectiveUser, effectiveUser.isSubscribed ? 'Unsubscribe' : 'Subscribe');
-                        await _refreshUserData();
-                      }
-                    },
-                    icon: Icon(effectiveUser.isSubscribed ? Icons.check_circle : Icons.card_membership, size: 18),
-                    label: Text(effectiveUser.isSubscribed ? context.tr.subscribed : context.tr.subscribePrice('${context.tr.currencySymbol}12.00'), maxLines: 1, softWrap: false, style: const TextStyle(fontSize: 13)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: effectiveUser.isSubscribed ? Colors.grey[700] : const Color(0xFFDB2777),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                      minimumSize: const Size(0, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    height: 50,
-                    decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFDB2777), Color(0xFFA855F7)]), borderRadius: BorderRadius.circular(8)),
-                    child: ElevatedButton.icon(
-                      onPressed: () { if (widget.onUserAction != null) widget.onUserAction!(effectiveUser, 'Stream'); },
-                      icon: const Icon(Icons.music_note, size: 18),
-                      label: Text(context.tr.streamArtist, maxLines: 1, softWrap: false, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 12),
-              Row(mainAxisAlignment: MainAxisAlignment.end, children: [
-                Container(
-                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFDB2777), Color(0xFFbe123c)]), borderRadius: BorderRadius.circular(8), boxShadow: [BoxShadow(color: const Color(0xFFDB2777).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]),
-                  child: ElevatedButton.icon(
-                    onPressed: () { showDialog(context: context, builder: (context) => TipDialog(user: effectiveUser)); },
-                    icon: const Icon(Icons.card_giftcard, size: 16),
-                    label: Text(context.tr.tip, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    if (widget.onUserAction != null) {
+                      await widget.onUserAction!(effectiveUser,
+                          effectiveUser.isSubscribed ? 'Unsubscribe' : 'Subscribe');
+                      await _refreshUserData();
+                    }
+                  },
+                  icon: Icon(
+                      effectiveUser.isSubscribed
+                          ? Icons.check_circle
+                          : Icons.card_membership,
+                      size: 18),
+                  label: Text(
+                      effectiveUser.isSubscribed
+                          ? context.tr.subscribed
+                          : context.tr.subscribePrice(
+                          '${context.tr.currencySymbol}12.00'),
+                      maxLines: 1,
+                      softWrap: false,
+                      style: const TextStyle(fontSize: 13)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: effectiveUser.isSubscribed
+                        ? Colors.grey[700]
+                        : const Color(0xFFDB2777),
+                    foregroundColor: Colors.white,
+                    padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    minimumSize: const Size(0, 50),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8)),
                   ),
                 ),
               ]),
-            ]),
+            ),
           ),
+        // ── Block / Unblock — shown for ALL non-me profiles ──────────────────
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          child: Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+            ElevatedButton.icon(
+              onPressed: _isBlockLoading
+                  ? null
+                  : () async {
+                setState(() => _isBlockLoading = true);
+                try {
+                  final userId = effectiveUser.id;
+                  if (userId == null) return;
+                  final res = await ref
+                      .read(blockProvider.notifier)
+                      .toggleBlock(userId);
+                  if (res != null && mounted) {
+                    setState(() => _isBlockedOverride = res.data.isBlocked);
+                    widget.onUserAction?.call(
+                      effectiveUser,
+                      res.data.isBlocked ? 'Block' : 'Unblock',
+                    );
+                    ref.invalidate(connectionsProvider(widget.currentUser.username));
+                    ref.invalidate(connectionsProvider(effectiveUser.username));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(res.message)));
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                } finally {
+                  if (mounted) setState(() => _isBlockLoading = false);
+                }
+              },
+              icon: _isBlockLoading
+                  ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+                  : Icon(
+                  _isBlockedOverride ?? false ? Icons.lock_open : Icons.block,
+                  size: 16),
+              label: Text(
+                  _isBlockedOverride ?? false ? 'Unblock' : 'Block',
+                  style: const TextStyle(fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isBlockedOverride ?? false
+                    ? Colors.grey.shade600
+                    : const Color(0xFFFF2D2D),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ]),
+        ),
         if (effectiveUser.isArtist && !isFollowing && !effectiveUser.isSubscribed) ...[
           const SizedBox(height: 20),
           Padding(
@@ -1221,16 +1377,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               color: const Color(0xFFDB2777).withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
               child: InkWell(
-                onTap: () async { if (widget.onUserAction != null) { await widget.onUserAction!(effectiveUser, 'Follow'); await _refreshUserData(); } },
+                onTap: () async {
+                  if (widget.onUserAction != null) {
+                    await widget.onUserAction!(effectiveUser, 'Follow');
+                    await _refreshUserData();
+                  }
+                },
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), border: Border.all(color: const Color(0xFFDB2777).withOpacity(0.2))),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: const Color(0xFFDB2777).withOpacity(0.2))),
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(Icons.person_add_alt_1, size: 16, color: Theme.of(context).brightness == Brightness.dark ? Colors.white70 : const Color(0xFFDB2777)),
+                    Icon(Icons.person_add_alt_1,
+                        size: 16,
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white70
+                            : const Color(0xFFDB2777)),
                     const SizedBox(width: 8),
-                    Text(context.tr.followArtistToUnlock, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.white.withOpacity(0.7) : const Color(0xFFDB2777), fontSize: 13, fontWeight: FontWeight.w500)),
+                    Text(context.tr.followArtistToUnlock,
+                        style: TextStyle(
+                            color: Theme.of(context).brightness == Brightness.dark
+                                ? Colors.white.withOpacity(0.7)
+                                : const Color(0xFFDB2777),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500)),
                   ]),
                 ),
               ),

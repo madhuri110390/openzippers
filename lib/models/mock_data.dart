@@ -1,4 +1,5 @@
 class MockUser {
+  final int? id;          // ← server user ID used by follow/block APIs
   final String name;
   final String username;
   final String avatar;
@@ -16,13 +17,15 @@ class MockUser {
   final bool isOnline;
   final bool isSubscribed;
   final bool isEmailVerified;
+  bool? isFollowing;
+  bool? isBlocked;
 
-  // ✅ Real IDs from API — used by EditProfileScreen for reliable location matching
   final int? countryId;
   final int? stateId;
   final int? cityId;
 
   MockUser({
+    this.id,
     required this.name,
     required this.username,
     required this.avatar,
@@ -43,11 +46,15 @@ class MockUser {
     this.countryId,
     this.stateId,
     this.cityId,
+    this.isFollowing,
+    this.isBlocked,
   }) : joinedDate = joinedDate ?? DateTime(2025, 12, 1);
 
   String get profileImage => avatar;
+  String get avatarUrl => avatar;
 
   MockUser copyWith({
+    int? id,
     String? name,
     String? username,
     String? avatar,
@@ -68,8 +75,11 @@ class MockUser {
     int? countryId,
     int? stateId,
     int? cityId,
+    bool? isFollowing,
+    bool? isBlocked,
   }) {
     return MockUser(
+      id: id ?? this.id,
       name: name ?? this.name,
       username: username ?? this.username,
       avatar: avatar ?? this.avatar,
@@ -90,10 +100,13 @@ class MockUser {
       countryId: countryId ?? this.countryId,
       stateId: stateId ?? this.stateId,
       cityId: cityId ?? this.cityId,
+      isFollowing: isFollowing ?? this.isFollowing,
+      isBlocked: isBlocked ?? this.isBlocked,
     );
   }
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'name': name,
     'username': username,
     'avatar': avatar,
@@ -114,10 +127,13 @@ class MockUser {
     'countryId': countryId,
     'stateId': stateId,
     'cityId': cityId,
+    'isFollowing': isFollowing,
+    'isBlocked': isBlocked,
   };
 
   factory MockUser.fromJson(Map<String, dynamic> json) {
     return MockUser(
+      id: json['id'] as int?,
       name: json['name'],
       username: json['username'],
       avatar: json['avatar'],
@@ -138,47 +154,42 @@ class MockUser {
       isSubscribed: json['isSubscribed'] == 1 || json['isSubscribed'] == true,
       isEmailVerified:
       json['isEmailVerified'] == 1 || json['isEmailVerified'] == true,
-      // ✅ Persist IDs across sessions
       countryId: json['countryId'] as int?,
       stateId: json['stateId'] as int?,
       cityId: json['cityId'] as int?,
+      isFollowing: json['isFollowing'] as bool?,
+      isBlocked: json['isBlocked'] as bool?,
     );
   }
 
-  /// ✅ Build a MockUser directly from your API's RegisterUser
-  factory MockUser.fromRegisterUser(dynamic registerUser, {String type = 'follower'}) {
+  factory MockUser.fromRegisterUser(dynamic registerUser,
+      {String type = 'follower'}) {
     return MockUser(
-      name:           registerUser.name ?? '',
-      username:       registerUser.username ?? '',
-      avatar:         registerUser.avatarUrl ?? '',
-      coverImage:     registerUser.coverImageUrl ?? '',
-      isVerified:     registerUser.isVerified ?? false,
-      isArtist:       registerUser.isArtist ?? false,
-      phone:          registerUser.mobileNumber ?? '',
-      bio:            registerUser.bio ?? '',
-      type:           type,
-      gender:         registerUser.gender ?? 'Female',
-      // Store IDs directly — names will be resolved by EditProfileScreen
-      countryId:      registerUser.countryId,
-      stateId:        registerUser.stateId,
-      cityId:         registerUser.cityId,
-      // Name strings left as empty — EditProfileScreen resolves from API
-      country:        '',
-      state:          '',
-      city:           '',
+      id:          registerUser.id as int?,
+      name:        registerUser.name ?? '',
+      username:    registerUser.username ?? '',
+      avatar:      registerUser.avatarUrl ?? '',
+      coverImage:  registerUser.coverImageUrl ?? '',
+      isVerified:  registerUser.isVerified ?? false,
+      isArtist:    registerUser.isArtist ?? false,
+      phone:       registerUser.mobileNumber ?? '',
+      bio:         registerUser.bio ?? '',
+      type:        type,
+      gender:      registerUser.gender ?? 'Female',
+      countryId:   registerUser.countryId,
+      stateId:     registerUser.stateId,
+      cityId:      registerUser.cityId,
+      country:     '',
+      state:       '',
+      city:        '',
       isEmailVerified: registerUser.emailVerifiedAt != null,
     );
   }
 }
 
 class MockCommunity {
-  static List<MockUser> generateUsers() {
-    return [];
-  }
-
-  static List<Map<String, dynamic>> generatePosts(List<MockUser> users) {
-    return [];
-  }
+  static List<MockUser> generateUsers() => [];
+  static List<Map<String, dynamic>> generatePosts(List<MockUser> users) => [];
 }
 
 class MockData {

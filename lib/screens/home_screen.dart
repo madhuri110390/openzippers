@@ -12,6 +12,7 @@ import '../helpers/translations.dart';
 import 'package:sqflite/sqflite.dart';
 import '../network/api_client.dart';
 import '../providers/cart_provider.dart';
+import '../providers/connections_provider.dart';
 import '../providers/rating_provider.dart';
 import '../viewmodels/comment_viewmodel.dart';
 import '../viewmodels/search_viewmodel.dart';
@@ -3379,7 +3380,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         await _dbHelper.unsubscribeFromUser(currentUser.username, user.username);
         break;
     }
-    await _loadData();
+
+    // Invalidate connections for both users so counts refresh instantly
+    ref.invalidate(connectionsProvider(currentUser.username));
+    ref.invalidate(connectionsProvider(user.username));
+
+    // Only reload relationships — not the full _loadData()
+    await _loadRelationships();
   }
 
   String _getDisplayStats(MockUser user, String type) {

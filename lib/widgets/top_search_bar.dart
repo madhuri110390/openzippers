@@ -208,7 +208,7 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                   const SizedBox(width: 6),
                   if (widget.currentUser?.isArtist == true)
                     _NavIconButton(
-                      icon: Icons.add_box_outlined,
+                      icon: Icons.edit_outlined,
                       isDark: isDark,
                       tooltip: context.tr.createPost,
                       onPressed: widget.onCreateTap,
