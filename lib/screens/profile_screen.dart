@@ -447,12 +447,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 }
               }
               // Remove deleted
-              _posts.removeWhere((p) {
-                final id = p['id']?.toString() ?? '';
-                return id.isNotEmpty &&
-                    !normalized.any((n) => n['id']?.toString() == id);
-              });
-            }
+              if (normalized.isNotEmpty) {
+                _posts.removeWhere((p) {
+                  final id = p['id']?.toString() ?? '';
+                  return id.isNotEmpty &&
+                      !normalized.any((n) => n['id']?.toString() == id);
+                });
+              }
 
             // Merge liked state — never remove optimistic likes
             for (final p in normalized) {
@@ -464,7 +465,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             }
 
             _prefillRatings(_posts);
-          });
+          }});
 
           // Restore scroll position after rebuild
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -641,14 +642,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (url == null || url.isEmpty || !url.startsWith('http')) return false;
     return false;
   }
-
+// REPLACE entire _postHasDisplayableImage method:
   bool _postHasDisplayableImage(Map<String, dynamic> post) {
-    final imageUrl = post['imageUrl']?.toString().trim() ?? '';
-    final filePath = post['filePath']?.toString().trim() ?? '';
+    final type = (post['type'] ?? post['post_type'] ?? '').toString().toLowerCase();
+
+    // Audio and literature don't need an image URL — never filter them out
+    if (type == 'song' || type == 'audio' || type == 'literature') return true;
+
+    final imageUrl  = post['imageUrl']?.toString().trim() ?? '';
+    final filePath  = post['filePath']?.toString().trim() ?? '';
     final coverPath = post['coverPath']?.toString().trim() ?? '';
+
+    // If ALL known http URLs have already failed to load → hide the card
     final urls = [imageUrl, filePath, coverPath]
-        .where((u) => u.isNotEmpty && u.startsWith('http')).toList();
-    if (urls.isNotEmpty && urls.every((u) => _failedMediaUrls.contains(u))) return false;
+        .where((u) => u.isNotEmpty && u.startsWith('http'))
+        .toList();
+
+    if (urls.isNotEmpty && urls.every((u) => _failedMediaUrls.contains(u))) {
+      return false;
+    }
     return true;
   }
 
@@ -2033,7 +2045,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             ),
           ),
           CommentSection(
-            key: ValueKey('profile_cs_${post['id']}_${_getCommentCount(post)}'),
+            key: ValueKey('profile_cs_${post['id']}'),
             post: post,
             currentUser: widget.currentUser,
             users: widget.users,
@@ -2041,72 +2053,95 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             onPostAction: (p, a, {extraData}) async {
               if (a == 'SubmitComment' && extraData != null) {
                 final text = (extraData['text'] ?? '').toString().trim();
-                final parentId = extraData['parentId'];
+                final rawParentId = extraData['parentId'];
                 if (text.isEmpty) return;
-                final postId = p['id'] is int ? p['id'] as int : int.tryParse(p['id'].toString());
+
+                // Normalize parentId to int? — same logic as CommentsBottomSheet
+                int? parentIdInt;
+                if (rawParentId != null) {
+                  if (rawParentId is int && rawParentId != 0) {
+                    parentIdInt = rawParentId;
+                  } else {
+                    final parsed = int.tryParse(rawParentId.toString());
+                    if (parsed != null && parsed != 0) parentIdInt = parsed;
+                  }
+                }
+
+                final postId = p['id'] is int
+                    ? p['id'] as int
+                    : int.tryParse(p['id'].toString());
                 if (postId == null) return;
+
                 try {
                   final prefs = await SharedPreferences.getInstance();
                   final token = prefs.getString('auth_token') ?? '';
                   if (token.isEmpty) return;
-                  final body = <String, dynamic>{
-                    'post_id': postId,
-                    'comment': text,
-                    if (parentId != null) 'parent_id': parentId,
-                  };
+
                   final dio = Dio();
                   dio.options.baseUrl = 'https://openzippers.com/api/v1/';
                   dio.options.headers = {
                     'Accept': 'application/json',
+                    'Content-Type': 'application/json', // required for JSON body
                     'Authorization': 'Bearer $token',
                   };
-                  final int parsedPostId = postId is int
-                      ? postId
-                      : int.tryParse(postId.toString()) ?? 0;
 
-                  debugPrint('DETAIL COMMENT BODY: post_id=$parsedPostId content=$text');
+                  debugPrint('DETAIL COMMENT: post_id=$postId parent_id=$parentIdInt text=$text');
 
+                  // Send as JSON body (plain Map) — NOT FormData.
+                  // Laravel's exists:comments,id validation fails when parent_id
+                  // arrives as a multipart string instead of a JSON integer.
                   final response = await dio.post(
                     'zippfans/comments',
                     data: {
-                      'post_id': parsedPostId,
+                      'post_id': postId,
                       'content': text,
-                      if (parentId != null)
-                        'parent_id': parentId is int
-                            ? parentId
-                            : int.tryParse(parentId.toString()),
+                      'comment': text, // send both; API uses whichever it expects
+                      if (parentIdInt != null) 'parent_id': parentIdInt,
                     },
                     options: Options(validateStatus: (s) => s != null && s < 500),
                   );
 
                   debugPrint('DETAIL COMMENT RESPONSE ${response.statusCode}: ${response.data}');
-                  debugPrint('DETAIL COMMENT ${response.statusCode}: ${response.data}');
+
                   if (response.statusCode == 200 || response.statusCode == 201) {
                     final existing = List.from(p['comments'] as List? ?? []);
-                    final newComment = {
+                    final newComment = <String, dynamic>{
                       'id': DateTime.now().millisecondsSinceEpoch,
                       'author': widget.currentUser.name,
                       'avatar': widget.currentUser.avatar,
                       'text': text,
                       'time': 'Just now',
-                      'parentId': parentId,
+                      'parentId': parentIdInt, // always int? — matches groupedComments key
                       'timestamp': DateTime.now(),
                       'likes': <String>[],
                     };
                     existing.insert(0, newComment);
                     p['comments'] = existing;
-                    p['commentsCount'] = (p['commentsCount'] is int ? p['commentsCount'] :
-                    int.tryParse(p['commentsCount']?.toString() ?? '0') ?? 0) + 1;
-                    p['comments_count'] = p['commentsCount'];
+
+                    // Count ALL comments (root + replies) — same as CommentsBottomSheet
+                    final newCount = existing.length;
+                    p['commentsCount'] = newCount;
+                    p['comments_count'] = newCount;
+
                     final idx = _posts.indexWhere((pp) => pp['id'] == p['id']);
                     if (idx != -1) {
-                      _posts[idx]['commentsCount'] = p['commentsCount'];
+                      _posts[idx]['commentsCount'] = newCount;
                       _posts[idx]['comments'] = existing;
                     }
-                    post['commentsCount'] = p['commentsCount'];
-                    post['comments_count'] = p['commentsCount'];
+                    post['commentsCount'] = newCount;
+                    post['comments_count'] = newCount;
                     post['comments'] = existing;
-                    if (setModalState != null) setModalState(() {}); else if (mounted) setState(() {});
+
+                    if (setModalState != null) setModalState(() {});
+                    else if (mounted) setState(() {});
+                  } else {
+                    final msg = response.data is Map
+                        ? (response.data['message'] ?? 'Failed to post')
+                        : 'Error ${response.statusCode}';
+                    if (mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(msg)));
+                    }
                   }
                 } catch (e) {
                   debugPrint('Comment submit error: $e');
@@ -2114,7 +2149,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 return;
               }
               widget.onPostAction(p, a, extraData: extraData);
-              if (setModalState != null) setModalState(() {}); else if (mounted) setState(() {});
+              if (setModalState != null) setModalState(() {});
+              else if (mounted) setState(() {});
             },
             onUserTap: widget.onUserTap,
           ),

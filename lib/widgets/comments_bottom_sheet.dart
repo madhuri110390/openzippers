@@ -33,6 +33,12 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   bool _isSubmitting = false;
   bool _isLoading = false;
 
+  // Key for CommentSection — only changes on postId, NOT on comment count.
+  // If we keyed on length, the widget would be destroyed/recreated every time
+  // a comment is added, which wipes _replyingTo while the user is mid-reply.
+  late final _commentSectionKey =
+  ValueKey('cs_${widget.post['id']}');
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +53,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
   Future<void> _fetchCommentsFromApi() async {
     final postId = widget.post['id'];
     if (postId == null) return;
-    final int? pid = postId is int ? postId : int.tryParse(postId.toString());
+    final int? pid =
+    postId is int ? postId : int.tryParse(postId.toString());
     if (pid == null) return;
 
     if (mounted) setState(() => _isLoading = true);
@@ -70,7 +77,6 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       );
 
       debugPrint('=== FETCH STATUS: ${response.statusCode}');
-      debugPrint('=== FETCH DATA: ${response.data}');
 
       if (!mounted) return;
 
@@ -103,7 +109,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
       if (mounted) {
         setState(() {
-          // Keep all local comments; only add truly new ones from server
+          // Keep all local comments; only append truly new ones from server.
+          // This preserves: pending comments, local like mutations, reply state.
           final localIds =
           _localComments.map((c) => c['id'].toString()).toSet();
 
@@ -113,7 +120,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
           _localComments = [..._localComments, ...newFromServer];
 
-          // Clear _pending flag for comments that the server now knows about
+          // Clear _pending flag for any local comment the server now confirms.
           final serverIds =
           fetched.map((c) => c['id'].toString()).toSet();
           _localComments = _localComments.map((c) {
@@ -125,8 +132,8 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           }).toList();
 
           final rootCount = _localComments.where((c) {
-            final pid = c['parentId'];
-            return pid == null || pid == 0 || pid == '0';
+            final p = c['parentId'];
+            return p == null || p == 0 || p == '0';
           }).length;
 
           _serverCount =
@@ -209,10 +216,21 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       timestamp = m['timestamp'] as DateTime;
     }
 
-    dynamic parentId = m['parentId'] ?? m['parent_id'];
+    // Normalize parentId to int for consistent groupedComments key lookup
+    dynamic rawParentId = m['parentId'] ?? m['parent_id'];
     if (forcedParentId != null &&
-        (parentId == null || parentId == 0 || parentId == '0')) {
-      parentId = forcedParentId;
+        (rawParentId == null || rawParentId == 0 || rawParentId == '0')) {
+      rawParentId = forcedParentId;
+    }
+    // Always store parentId as int? so groupedComments[int] lookup works
+    int? parentId;
+    if (rawParentId != null) {
+      if (rawParentId is int) {
+        parentId = rawParentId == 0 ? null : rawParentId;
+      } else {
+        final parsed = int.tryParse(rawParentId.toString());
+        parentId = (parsed == null || parsed == 0) ? null : parsed;
+      }
     }
 
     return {
@@ -223,7 +241,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
           .toString(),
       'time': time,
       'timestamp': timestamp,
-      'parentId': parentId,
+      'parentId': parentId, // always int? — never string
       'likes': List<String>.from(m['likes'] ?? const []),
     };
   }
@@ -255,10 +273,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
   int _localRootCount() => _localComments.where((c) {
     final pid = c['parentId'];
-    return pid == null ||
-        pid == 0 ||
-        pid == '0' ||
-        (pid is String && pid.trim().isEmpty);
+    return pid == null || pid == 0;
   }).length;
 
   int _getDisplayCount() {
@@ -266,7 +281,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     return loaded > _serverCount ? loaded : _serverCount;
   }
 
-  // ── Submit comment ─────────────────────────────────────────────────────────
+  // ── Submit comment or reply ────────────────────────────────────────────────
   Future<void> _submitComment(String text, {dynamic parentId}) async {
     final cleanText = text.trim();
     if (cleanText.isEmpty || _isSubmitting) return;
@@ -274,8 +289,18 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     final postId = widget.post['id'];
     if (postId == null) return;
 
-    final bool isRoot =
-        parentId == null || parentId == 0 || parentId == '0';
+    // Normalize parentId to int? — CommentSection passes int? already
+    int? parentIdInt;
+    if (parentId != null) {
+      if (parentId is int && parentId != 0) {
+        parentIdInt = parentId;
+      } else {
+        final parsed = int.tryParse(parentId.toString());
+        if (parsed != null && parsed != 0) parentIdInt = parsed;
+      }
+    }
+
+    final bool isRoot = parentIdInt == null;
 
     // Optimistic insert
     final tempId = DateTime.now().millisecondsSinceEpoch;
@@ -285,7 +310,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
       'avatar': _normalizeUrl(widget.currentUser.avatar),
       'text': cleanText,
       'time': 'Just now',
-      'parentId': parentId,
+      'parentId': parentIdInt, // int? — consistent with normalized comments
       'timestamp': DateTime.now(),
       'likes': <String>[],
       '_pending': true,
@@ -328,25 +353,27 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         return;
       }
 
+      final formMap = <String, dynamic>{
+        'post_id': parsedPostId,
+        'content': cleanText,
+      };
+      // Only include parent_id for actual replies (not root comments)
+      if (!isRoot && parentIdInt != null) {
+        formMap['parent_id'] = parentIdInt;
+      }
+
       final response = await dio.post(
         'zippfans/comments',
-        data: FormData.fromMap({
-          'post_id': parsedPostId,
-          'content': cleanText,
-          if (!isRoot && parentId != null)
-            'parent_id': parentId is int
-                ? parentId
-                : int.tryParse(parentId.toString()),
-        }),
+        data: FormData.fromMap(formMap),
         options: Options(validateStatus: (s) => s != null && s < 500),
       );
 
-      debugPrint('COMMENT BODY: post_id=$parsedPostId content=$cleanText');
+      debugPrint(
+          'COMMENT BODY: post_id=$parsedPostId parent_id=$parentIdInt content=$cleanText');
       debugPrint(
           'COMMENT RESPONSE ${response.statusCode}: ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Replace optimistic entry with real server data (or just clear _pending)
         dynamic rawSaved;
         if (response.data is Map) {
           rawSaved =
@@ -356,7 +383,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
             ? _normalizeComment(rawSaved)
             : <String, dynamic>{};
 
-        // ✅ NO _fetchCommentsFromApi() call here — that was wiping the comment
+        // ✅ No _fetchCommentsFromApi() here — that was wiping the new comment
         setState(() {
           final idx =
           _localComments.indexWhere((c) => c['id'] == tempId);
@@ -394,7 +421,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     }
   }
 
-  // ── Rollback optimistic insert ─────────────────────────────────────────────
+  // ── Rollback optimistic insert on failure ──────────────────────────────────
   void _rollback(int tempId, bool wasRoot) {
     if (!mounted) return;
     setState(() {
@@ -419,7 +446,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     }
 
     if (action == 'LikeComment' && extraData is Map<String, dynamic>) {
-      // Update _localComments in place so CommentSection sees the change
+      // Update _localComments in place so CommentSection sees the new likes list
       setState(() {
         final idx = _localComments.indexWhere(
                 (c) => c['id'].toString() == extraData['id'].toString());
@@ -428,7 +455,6 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
         }
         widget.post['comments'] = _localComments;
       });
-      // Propagate to HomeScreen for persistence
       widget.onPostAction(post, action, extraData: extraData);
       return;
     }
@@ -567,8 +593,10 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
             const Divider(height: 1),
             Expanded(
               child: CommentSection(
-                key: ValueKey(
-                    'comments_${widget.post['id']}_${_localComments.length}'),
+                // KEY: only on postId — NOT on comment count.
+                // Keying on count destroys CommentSection on every new comment,
+                // which wipes _replyingTo while the user is typing a reply.
+                key: _commentSectionKey,
                 post: {
                   ...widget.post,
                   'comments': _localComments,
