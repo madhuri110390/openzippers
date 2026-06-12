@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart' as widgets;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
 import 'dart:convert';
+import '../providers/add_cart_provider.dart';
 import '../providers/block_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/rating_provider.dart';
@@ -326,12 +327,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     if (idx == 0) {
       base = widget.posts.toList();
     } else if (idx == 1) {
-      base = widget.posts.where((p) {
-        final author = p['author'] as String? ?? '';
-        return author.trim().toLowerCase() ==
-            widget.currentUser.name.trim().toLowerCase();
-      }).toList();
-    } else if (idx == 2) {
+      base = _myPosts;
+    }else if (idx == 2) {
       base = widget.bookmarkedPosts;
     } else {
       base = [];
@@ -376,7 +373,25 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     _loadAlbums();
     _startLoadingTimeout();
   }
+  List<Map<String, dynamic>> _myPosts = [];
 
+  Future<void> _fetchMyPosts() async {
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    final response = await http.get(
+      Uri.parse('https://openzippers.com/api/v1/zippfans/posts/my-posts'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      debugPrint('response: ${response.body}');
+      if (mounted) setState(() => _myPosts = List<Map<String, dynamic>>.from(data['data'] ?? []));
+    }
+  }
   @override
   void didUpdateWidget(MainContentArea oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -1180,14 +1195,17 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           ),
         ),
         const SizedBox(width: 8),
-        Expanded(
-          child: _buildHeaderTab(
-            icon: Icons.person_outline,
-            label: context.tr.myPosts,
-            isActive: _selectedIndex == 1,
-            onTap: () => setState(() => _selectedIndex = 1),
-          ),
-        ),
+    Expanded(
+    child: _buildHeaderTab(
+    icon: Icons.person_outline,
+    label: context.tr.myPosts,
+    isActive: _selectedIndex == 1,
+    onTap: () {
+    setState(() => _selectedIndex = 1);
+    _fetchMyPosts();
+    },
+    ),
+    ),
         const SizedBox(width: 8),
         Expanded(
           child: _buildHeaderTab(
@@ -1968,6 +1986,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
   Widget _buildLockedOverlay(BuildContext context, Map<String, dynamic> post) {
     final theme = Theme.of(context);
+    final cartState = ref.watch(cartViewModelProvider);
     final imagePath =
         (post['image'] ?? post['preview_url'] ?? post['filePath'] ?? '')
             .toString();
@@ -2133,41 +2152,71 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                   child: SizedBox(
                     width: double.infinity,
                     height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        widget.onAddToCart?.call(post);
+                    child:
 
-                        ref.invalidate(cartProvider);
-                        await ref.refresh(cartProvider.future);
 
-                        if (!mounted) return;
+    ElevatedButton(
+    onPressed: cartState.isLoading
+    ? null
+        : () async {
 
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const CartScreen(),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _kPink,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        "Add to Cart",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+    await ref
+        .read(cartViewModelProvider.notifier)
+        .toggleCart(post['id']);
+
+    final state =
+    ref.read(cartViewModelProvider);
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+    content: Text(
+    state.message ?? '',
+    ),
+    ),
+    );
+
+    ref.invalidate(cartProvider);
+    await ref.refresh(cartProvider.future);
+
+    Navigator.push(
+    context,
+    MaterialPageRoute(
+    builder: (_) => const CartScreen(),
+    ),
+    );
+    },
+    style: ElevatedButton.styleFrom(
+    backgroundColor: _kPink,
+    foregroundColor: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(12),
+    ),
+    ),
+    child: cartState.isLoading
+    ? const SizedBox(
+    height: 18,
+    width: 18,
+    child: CircularProgressIndicator(
+    strokeWidth: 2,
+    color: Colors.white,
+    ),
+    )
+        : const Text(
+    "Add to Cart",
+    style: TextStyle(
+    color: Colors.white,
+    fontSize: 14,
+    fontWeight: FontWeight.w600,
+    ),
+    ),
+    )
+
                     ),
                   ),
-                ),
+
 
               ],
             ),

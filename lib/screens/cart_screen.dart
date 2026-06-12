@@ -1,9 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:video_player/video_player.dart';
-import '../helpers/translations.dart';
 import '../providers/cart_provider.dart';
 import '../models/cart_response.dart';
 import '../providers/wallet_payment_provider.dart';
@@ -14,19 +10,11 @@ const _kCardBg = Color(0xFF14233D);
 const _kCardBorder = Color(0xFF1E3050);
 
 class CartScreen extends ConsumerStatefulWidget {
-  final ValueNotifier<List<Map<String, dynamic>>>? cartItemsNotifier;
-  final Function(int)? onIncrement;
-  final Function(int)? onDecrement;
   final Function(int)? onRemove;
-  final Future<bool> Function(Map<String, dynamic>)? validateItemExists;
 
   const CartScreen({
     super.key,
-    this.cartItemsNotifier,
-    this.onIncrement,
-    this.onDecrement,
     this.onRemove,
-    this.validateItemExists,
   });
 
   @override
@@ -35,88 +23,76 @@ class CartScreen extends ConsumerStatefulWidget {
 
 class _CartScreenState extends ConsumerState<CartScreen> {
   bool _isProcessing = false;
-  final Map<int, bool> _itemAvailability = {};
-  bool _hasCheckedAvailability = false;
-  int _lastCartItemCount = 0;
   bool _paymentCompleted = false;
-
-  // Optimistic local removal — holds postIds removed by user before API is ready
   final Set<int> _removedPostIds = {};
 
-  // ── Price helpers ──────────────────────────────────────────────────────────
-  double _parsePrice(dynamic priceValue) {
-    if (priceValue == null) return 0.0;
-    if (priceValue is num) return priceValue.toDouble();
-    final s = priceValue.toString().trim().toLowerCase();
-    if (s == 'free' || s.isEmpty) return 0.0;
-    final clean = s.replaceAll(RegExp(r'[^\d.]'), '');
-    return double.tryParse(clean) ?? 0.0;
-  }
-
-  double _calculateTotal(List<Map<String, dynamic>> items) {
-    return items.fold(0.0, (sum, item) {
-      final qty = (item['quantity'] as int?) ?? 1;
-      return sum + _parsePrice(item['price']) * qty;
+  // ── Lifecycle ──────────────────────────────────────────────────────────────
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(cartProvider);
     });
   }
 
-  // ── Availability ───────────────────────────────────────────────────────────
-  Future<void> _checkItemAvailability(List<Map<String, dynamic>> items) async {
-    if (widget.validateItemExists == null) return;
-    _itemAvailability.clear();
-    for (int i = 0; i < items.length; i++) {
-      _itemAvailability[i] = await widget.validateItemExists!(items[i]);
-    }
-    if (mounted) setState(() => _hasCheckedAvailability = true);
-  }
+  // ── Price helper ───────────────────────────────────────────────────────────
+  double _parsePrice(String price) =>
+      double.tryParse(price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
 
   // ── Payment ────────────────────────────────────────────────────────────────
-  Future<void> _processPayment(List<Map<String, dynamic>> items) async {
+  Future<void> _processPayment(List<CartItem> cartItems) async {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
 
     try {
-      final cartAsync = ref.read(cartProvider);
-      final cartItems = cartAsync.whenOrNull(
-        data: (response) => response.data.data.items,
-      ) ?? [];
+      bool anySuccess = false;
 
-      if (cartItems.isEmpty) {
-        setState(() => _isProcessing = false);
-        return;
-      }
-
-      bool allSuccess = true;
-      String? lastError;
-
-      // Pay for each item individually
       for (final item in cartItems) {
         await ref.read(walletPaymentProvider.notifier).pay(postId: item.postId);
         final payState = ref.read(walletPaymentProvider);
+
         if (!payState.success) {
-          allSuccess = false;
-          lastError = payState.error;
-          break;
+          final error = payState.error ?? '';
+          final alreadyPurchased = error.toLowerCase().contains(
+              'already purchased');
+
+          if (alreadyPurchased) {
+            // Mark as skipped but don't fail — item is already owned
+            ref.read(walletPaymentProvider.notifier).reset();
+            continue;
+          }
+
+          // Real failure — stop and report
+          setState(() => _isProcessing = false);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Payment failed: $error'),
+              backgroundColor: _kPink,
+            ));
+          }
+          // Refresh cart anyway so UI stays in sync
+          ref.invalidate(cartProvider);
+          return;
         }
+
+        anySuccess = true;
         ref.read(walletPaymentProvider.notifier).reset();
       }
 
-      if (allSuccess) {
-        // Refresh cart
-        ref.invalidate(cartProvider);
-        setState(() {
-          _isProcessing = false;
-          _paymentCompleted = true;
-        });
-        _showOrderConfirmation(
-          items,
-          items.fold(0.0, (sum, i) => sum + _parsePrice(i['price'])),
-        );
+      // All items processed (paid or already owned) — refresh cart + confirm
+      ref.invalidate(cartProvider);
+      setState(() {
+        _isProcessing = false;
+        _paymentCompleted = true;
+      });
+
+      if (anySuccess) {
+        _showOrderConfirmation(cartItems);
       } else {
-        setState(() => _isProcessing = false);
+        // Every item was already purchased
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Payment failed: ${lastError ?? 'Unknown error'}'),
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('You already own all items in your cart'),
             backgroundColor: _kPink,
           ));
         }
@@ -131,8 +107,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       }
     }
   }
-
-  void _showOrderConfirmation(List<Map<String, dynamic>> items, double total) {
+  void _showOrderConfirmation(List<CartItem> items) {
+    final total = items.fold(0.0, (s, i) => s + _parsePrice(i.price));
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -157,10 +133,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               const Text(
                 'Order Placed!',
                 style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: _kPink,
-                ),
+                    fontSize: 22, fontWeight: FontWeight.bold, color: _kPink),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -172,10 +145,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Text(
                 'Total: \$${total.toStringAsFixed(2)}',
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _kPink,
-                ),
+                    fontSize: 18, fontWeight: FontWeight.bold, color: _kPink),
               ),
               const SizedBox(height: 24),
               SizedBox(
@@ -190,13 +160,11 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     backgroundColor: _kPink,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text(
-                    'OK',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  child: const Text('OK',
+                      style:
+                      TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 ),
               ),
             ],
@@ -204,54 +172,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         ),
       ),
     );
-  }
-
-  // ── Image helper ───────────────────────────────────────────────────────────
-  DecorationImage? _getImageProvider(Map<String, dynamic> item) {
-    final cover = item['coverPath']?.toString() ?? '';
-    if (cover.isNotEmpty) {
-      return DecorationImage(image: FileImage(File(cover)), fit: BoxFit.cover);
-    }
-    final img = item['image']?.toString() ?? '';
-    if (img.isNotEmpty) {
-      if (img.startsWith('http')) {
-        return DecorationImage(image: NetworkImage(img), fit: BoxFit.cover);
-      }
-      return DecorationImage(image: AssetImage(img), fit: BoxFit.cover);
-    }
-    final fp = item['filePath']?.toString() ?? '';
-    if (fp.isNotEmpty && item['type'] == 'Image') {
-      return DecorationImage(image: FileImage(File(fp)), fit: BoxFit.cover);
-    }
-    return null;
-  }
-
-  IconData _typeIcon(String? type) {
-    switch (type) {
-      case 'Video':
-      case 'Reel':
-        return Icons.videocam_rounded;
-      case 'Song':
-      case 'Audio':
-        return Icons.music_note_rounded;
-      case 'Literature':
-      case 'PDF':
-        return Icons.picture_as_pdf_rounded;
-      default:
-        return Icons.image_rounded;
-    }
-  }
-
-  // ── CartItem → Map helper ──────────────────────────────────────────────────
-  Map<String, dynamic> _cartItemToMap(CartItem item) {
-    return {
-      'id': item.id,
-      'post_id': item.postId,
-      'title': item.title,
-      'price': item.price,
-      'author': item.authorName,
-      'image': item.authorAvatar,
-    };
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -277,75 +197,60 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             Text(
               'My Cart',
               style: TextStyle(
-                color: _kPink,
-                fontWeight: FontWeight.bold,
-                fontSize: 20,
-              ),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20),
             ),
           ],
         ),
       ),
       body: cartAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(color: _kPink),
-        ),
-        // ── FIX: handle 400 / any error gracefully as empty cart ──────────
-        error: (e, _) => _buildEmptyCart(),
+        loading: () =>
+        const Center(child: CircularProgressIndicator(color: _kPink)),
+        error: (e, _) {
+          debugPrint('=== CART SCREEN ERROR: $e');
+          return _buildEmptyCart();
+        },
         data: (cartResponse) {
-          final summary = cartResponse.data.data;
-
-          // ── FIX: filter out optimistically removed items ────────────────
-          final cartItems = summary.items
+          // Filter out optimistically removed items
+          final cartItems = cartResponse.cartItems
               .where((item) => !_removedPostIds.contains(item.postId))
               .toList();
 
           if (cartItems.isEmpty) return _buildEmptyCart();
 
-          final mapped = cartItems.map(_cartItemToMap).toList();
-
-          // Recalculate totals from visible items when some are removed locally
-          final visibleSubtotal = _removedPostIds.isEmpty
-              ? summary.subtotal
-              : cartItems.fold(0.0, (s, i) => s + _parsePrice(i.price));
-          final visibleTax = _removedPostIds.isEmpty
-              ? summary.taxAmount
-              : visibleSubtotal * 0.18;
-          final visibleTotal = _removedPostIds.isEmpty
-              ? summary.total
-              : visibleSubtotal + visibleTax;
-
-          // Availability check
-          if (widget.validateItemExists != null &&
-              !_hasCheckedAvailability &&
-              !_paymentCompleted) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _checkItemAvailability(mapped);
-            });
-          }
+          // Compute totals from visible items only
+          final subtotal =
+          cartItems.fold(0.0, (s, i) => s + _parsePrice(i.price));
+          final vatPercent = cartResponse.vatPercent;
+          final tax = subtotal * (vatPercent / 100);
+          final total = subtotal + tax;
 
           return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Item count label
               Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    '${cartItems.length} item${cartItems.length == 1 ? '' : 's'} in cart',
-                    style: const TextStyle(color: Colors.white54, fontSize: 13),
-                  ),
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 10),
+                child: Text(
+                  '${cartItems.length} item${cartItems.length == 1 ? '' : 's'} in cart',
+                  style:
+                  const TextStyle(color: Colors.white54, fontSize: 13),
                 ),
               ),
+
+              // Scrollable item list
               Expanded(
                 child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  itemCount: mapped.length,
+                  itemCount: cartItems.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) =>
-                      _buildCartItem(mapped, index),
+                  itemBuilder: (_, i) => _buildCartItem(cartItems, i),
                 ),
               ),
-              _buildOrderSummary(
-                  visibleSubtotal, visibleTax, visibleTotal, mapped),
+
+              // Order summary pinned at bottom
+              _buildOrderSummary(subtotal, tax, vatPercent, total, cartItems),
             ],
           );
         },
@@ -365,20 +270,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               color: _kPink.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.shopping_cart_outlined,
-              size: 64,
-              color: _kPink,
-            ),
+            child: const Icon(Icons.shopping_cart_outlined,
+                size: 64, color: _kPink),
           ),
           const SizedBox(height: 24),
           const Text(
             'Your cart is empty',
             style: TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+                color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           const Text(
@@ -390,125 +289,113 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  // ── Cart item card ─────────────────────────────────────────────────────────
-  Widget _buildCartItem(List<Map<String, dynamic>> items, int index) {
+  // ── Single item card ───────────────────────────────────────────────────────
+  Widget _buildCartItem(List<CartItem> items, int index) {
     final item = items[index];
-    final isAvailable = _itemAvailability[index] ?? true;
-    final price = _parsePrice(item['price']);
-    final author = item['author']?.toString() ?? '';
-    final imageDeco = _getImageProvider(item);
+    final price = _parsePrice(item.price);
 
     return Container(
       decoration: BoxDecoration(
         color: _kCardBg,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: _kCardBorder, width: 1),
       ),
+      padding: const EdgeInsets.all(12),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // ── Thumbnail ──────────────────────────────────────────────────
           ClipRRect(
-            borderRadius:
-            const BorderRadius.horizontal(left: Radius.circular(14)),
+            borderRadius: BorderRadius.circular(8),
             child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: Colors.white10,
-                image: imageDeco,
-              ),
-              child: imageDeco == null
-                  ? Icon(_typeIcon(item['type']?.toString()),
-                  color: Colors.white38, size: 32)
-                  : null,
+              width: 64,
+              height: 64,
+              color: Colors.white10,
+              child: item.image.isNotEmpty
+                  ? Image.network(
+                item.image,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.image_rounded,
+                    color: Colors.white38,
+                    size: 28),
+              )
+                  : const Icon(Icons.image_rounded,
+                  color: Colors.white38, size: 28),
             ),
           ),
+          const SizedBox(width: 12),
+
+          // ── Title + author ─────────────────────────────────────────────
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item['title']?.toString() ?? 'Unknown',
-                    style: TextStyle(
-                      color: isAvailable ? Colors.white : Colors.white38,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      decoration:
-                      isAvailable ? null : TextDecoration.lineThrough,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (author.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 3),
-                      child: Text(
-                        'By $author',
-                        style: const TextStyle(
-                          color: Colors.white54,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(0, 12, 12, 12),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  price == 0 ? 'Free' : '\$${price.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    color: isAvailable ? _kPink : Colors.white38,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    decoration:
-                    isAvailable ? null : TextDecoration.lineThrough,
-                  ),
+                  item.title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 10),
-                GestureDetector(
-                  onTap: () => _confirmRemove(context, item, index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade700,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.close, color: Colors.white, size: 13),
-                        SizedBox(width: 4),
-                        Text(
-                          'Remove',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
+                if (item.authorName.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'By ${item.authorName}',
+                    style:
+                    const TextStyle(color: Colors.white54, fontSize: 12),
                   ),
-                ),
+                ],
               ],
             ),
+          ),
+          const SizedBox(width: 12),
+
+          // ── Price + Remove ─────────────────────────────────────────────
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                price == 0 ? 'Free' : '\$${price.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    color: _kPink, fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: () => _confirmRemove(context, item, index),
+                child: Container(
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDC2626),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.close, color: Colors.white, size: 12),
+                      SizedBox(width: 4),
+                      Text(
+                        'Remove',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  void _confirmRemove(
-      BuildContext context, Map<String, dynamic> item, int index) {
+  void _confirmRemove(BuildContext context, CartItem item, int index) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -518,7 +405,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         title: const Text('Remove Item',
             style: TextStyle(color: _kPink, fontWeight: FontWeight.bold)),
         content: Text(
-          'Remove "${item['title']}" from cart?',
+          'Remove "${item.title}" from cart?',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -530,14 +417,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-
-              final postId = item['post_id'] as int?;
-              if (postId != null) {
-                // ── FIX: optimistic local removal, no API call / no invalidate ──
-                setState(() => _removedPostIds.add(postId));
-              }
-
-              // Notify parent if callback provided
+              // Optimistic local removal — wire remove API here later
+              setState(() => _removedPostIds.add(item.postId));
               widget.onRemove?.call(index);
             },
             child: const Text('Remove',
@@ -553,86 +434,91 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget _buildOrderSummary(
       double subtotal,
       double tax,
+      double vatPercent,
       double total,
-      List<Map<String, dynamic>> items,
+      List<CartItem> cartItems,
       ) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
       decoration: BoxDecoration(
         color: _kCardBg,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _kCardBorder),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          // Header
+          const Row(
+            children: [
               Icon(Icons.shopping_cart_outlined, color: _kPink, size: 18),
               SizedBox(width: 8),
               Text(
                 'Order Summary',
                 style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16),
               ),
             ],
           ),
           const SizedBox(height: 14),
           const Divider(color: _kCardBorder, height: 1),
-          const SizedBox(height: 14),
-          _summaryRow(
-            'Subtotal',
-            '\$${subtotal.toStringAsFixed(2)}',
-            valueColor: Colors.white,
-          ),
+          const SizedBox(height: 12),
+
+          _summaryRow('Subtotal', '\$${subtotal.toStringAsFixed(2)}'),
           const SizedBox(height: 8),
           _summaryRow(
-            'Tax (18.00%)',
+            'Tax (${vatPercent.toStringAsFixed(0)}%)',
             '\$${tax.toStringAsFixed(2)}',
-            valueColor: Colors.white,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           const Divider(color: _kCardBorder, height: 1),
-          const SizedBox(height: 14),
-          _summaryRow(
-            'Total',
-            '\$${total.toStringAsFixed(2)}',
-            labelStyle: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16),
-            valueColor: _kPink,
-            valueSize: 18,
+          const SizedBox(height: 12),
+
+          // Total row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Total',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16),
+              ),
+              Text(
+                '\$${total.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    color: _kPink, fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
+
+          // Checkout button
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 50,
             child: ElevatedButton.icon(
               onPressed:
-              _isProcessing ? null : () => _processPayment(items),
+              _isProcessing ? null : () => _processPayment(cartItems),
               icon: _isProcessing
                   ? const SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+                    strokeWidth: 2, color: Colors.white),
               )
                   : const Icon(Icons.shopping_cart_checkout_rounded,
                   color: Colors.white, size: 20),
               label: Text(
                 _isProcessing ? 'Processing…' : 'Checkout',
                 style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kPink,
@@ -640,8 +526,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 disabledBackgroundColor: Colors.grey.shade700,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ),
@@ -650,29 +535,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     );
   }
 
-  Widget _summaryRow(
-      String label,
-      String value, {
-        TextStyle? labelStyle,
-        Color valueColor = Colors.white70,
-        double valueSize = 14,
-      }) {
+  Widget _summaryRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: labelStyle ??
-              const TextStyle(color: Colors.white70, fontSize: 14),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            color: valueColor,
-            fontSize: valueSize,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(label,
+            style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w500)),
       ],
     );
   }

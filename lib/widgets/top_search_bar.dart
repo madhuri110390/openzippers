@@ -217,7 +217,7 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                     builder: (context, ref, _) {
                       final cartAsync = ref.watch(cartProvider);
                       final count = cartAsync.whenOrNull(
-                        data: (response) => response.data.data.itemCount,
+                        data: (response) => response.cartItems.length,
                       ) ?? 0;
                       return _BadgedIconButton(
                         icon: Icons.shopping_cart_outlined,

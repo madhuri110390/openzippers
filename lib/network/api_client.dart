@@ -4,6 +4,7 @@ import 'package:retrofit/retrofit.dart';
 import '../models/album_response.dart';
 import '../models/block_response.dart';
 import '../models/cart_response.dart';
+import '../models/cart_toggle_response.dart';
 import '../models/wallet_payment_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
@@ -24,7 +25,7 @@ import '../models/verification_response.dart';
 import '../models/wallet_response.dart';
 part 'api_client.g.dart';
 
-@RestApi(baseUrl: "https://openzippers.com/api/v1/")
+@RestApi(baseUrl: "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/")
 abstract class ApiClient {
   factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;
 
@@ -299,7 +300,7 @@ abstract class ApiClient {
   });
 
   //get item of cart
-  @GET("zippfans/payments/cart")
+  @GET("zippfans/cart")
   @Headers(<String, dynamic>{
     "Accept": "application/json",
   })
@@ -309,4 +310,13 @@ abstract class ApiClient {
   @POST("zippfans/payments/wallet")
   @Headers(<String, dynamic>{"Accept": "application/json"})
   Future<WalletPaymentResponse> walletPayment(@Body() Map<String, dynamic> body);
+
+  //add item to cart
+  @POST("zippfans/cart/toggle")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<CartToggleResponse> toggleCart(
+      @Body() Map<String, dynamic> body,
+      );
 }

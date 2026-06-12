@@ -106,23 +106,20 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
         final allFollowing = response.data.following;
         final serverBlocked = response.data.blocked;
 
-        // ── Followers: not blocked, not just-followed-back ──
-        final followers = allFollowers.where((u) {
-          if (_isBlockedNow(u)) return false;
-          final weJustFollowedBack = _followOverrides[u.id as int] == true &&
-              _wasOriginallyFollowerOnly(u, allFollowing);
-          return !weJustFollowedBack;
-        }).toList();
+        // ── Followers: not blocked (stay in list even after follow back) ──
+        final followers = allFollowers
+            .where((u) => !_isBlockedNow(u))
+            .toList();
 
         // ── Following: original + just-followed-back, minus blocked ──
         final Map<int, dynamic> followingMap = {};
         for (final u in allFollowing) {
           if (!_isBlockedNow(u)) followingMap[u.id as int] = u;
         }
+        // Add followers we just followed back (mutual — appear in both tabs)
         for (final u in allFollowers) {
           if (!_isBlockedNow(u) &&
-              _followOverrides[u.id as int] == true &&
-              _wasOriginallyFollowerOnly(u, allFollowing)) {
+              _followOverrides[u.id as int] == true) {
             followingMap[u.id as int] = u;
           }
         }
@@ -317,7 +314,8 @@ class _ConnectionsScreenState extends ConsumerState<ConnectionsScreen> {
         final wasFollowerOnly = _wasOriginallyFollowerOnly(user, allFollowing);
         setState(() {
           _followOverrides[id] = didFollow;
-          if (didFollow && wasFollowerOnly) _selectedTabIndex = 1;
+       //   if (didFollow && wasFollowerOnly) _selectedTabIndex = 1;
+          if (didFollow && wasFollowerOnly) {}
         });
         // Invalidate so server refetch gets correct list
         ref.invalidate(connectionsProvider(widget.username));

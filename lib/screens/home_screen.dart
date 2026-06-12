@@ -2210,10 +2210,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       final postId = post['id']?.toString() ?? '';
 
       final alreadyInCart = cartAsync.whenOrNull(
-        data: (response) {
-          final items = response.data.data.items;
-          return items.any((item) => item.postId.toString() == postId);
-        },
+        data: (response) => response.cartItems
+            .any((item) => item.postId.toString() == postId),
       ) ?? false;
 
       if (alreadyInCart) {

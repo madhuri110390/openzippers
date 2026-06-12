@@ -13,7 +13,7 @@ import '../network/api_client.dart';
 final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: 'https://openzippers.com/api/v1/',
+      baseUrl: 'https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/',
       headers: {
         'Accept': 'application/json',
         'openzippers-skip-browser-warning': 'true', // ← ADD THIS
