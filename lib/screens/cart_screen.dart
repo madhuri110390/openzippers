@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/cart_provider.dart';
 import '../models/cart_response.dart';
+import '../providers/remove_cart_provider.dart';
 import '../providers/wallet_payment_provider.dart';
 
 const _kPink = Color(0xFFDB2777);
@@ -57,11 +58,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               'already purchased');
 
           if (alreadyPurchased) {
-            // Mark as skipped but don't fail — item is already owned
+            // Remove from cart since it's already owned
+            await ref.read(removeCartProvider.notifier).remove(cartId: item.id);
+            ref.read(removeCartProvider.notifier).reset();
             ref.read(walletPaymentProvider.notifier).reset();
             continue;
           }
-
           // Real failure — stop and report
           setState(() => _isProcessing = false);
           if (mounted) {
@@ -415,15 +417,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 style: TextStyle(color: Colors.white54)),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              // Optimistic local removal — wire remove API here later
-              setState(() => _removedPostIds.add(item.postId));
+              // Call remove API
+              await ref.read(removeCartProvider.notifier).remove(cartId: item.id);
+              final removeState = ref.read(removeCartProvider);
+              if (removeState.success) {
+                // Refresh cart from API
+                ref.invalidate(cartProvider);
+              } else {
+                // Fallback to optimistic local removal
+                setState(() => _removedPostIds.add(item.postId));
+              }
+              ref.read(removeCartProvider.notifier).reset();
               widget.onRemove?.call(index);
             },
             child: const Text('Remove',
-                style:
-                TextStyle(color: _kPink, fontWeight: FontWeight.bold)),
+                style: TextStyle(color: _kPink, fontWeight: FontWeight.bold)),
           ),
         ],
       ),

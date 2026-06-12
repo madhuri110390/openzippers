@@ -958,7 +958,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final token = prefs.getString('auth_token') ?? '';
       if (token.isEmpty) return;
       final dio = Dio();
-      dio.options.baseUrl = 'https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/';
+      dio.options.baseUrl = 'https://openzippers.com/api/v1/';
       dio.options.headers = {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',

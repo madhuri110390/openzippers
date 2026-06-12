@@ -5,6 +5,7 @@ import '../models/album_response.dart';
 import '../models/block_response.dart';
 import '../models/cart_response.dart';
 import '../models/cart_toggle_response.dart';
+import '../models/remove_cart_response.dart';
 import '../models/wallet_payment_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
@@ -25,7 +26,7 @@ import '../models/verification_response.dart';
 import '../models/wallet_response.dart';
 part 'api_client.g.dart';
 
-@RestApi(baseUrl: "https://overlearnedly-unfluvial-flynn.ngrok-free.dev/api/v1/")
+@RestApi(baseUrl: "https://openzippers.com/api/v1/")
 abstract class ApiClient {
   factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;
 
@@ -319,4 +320,9 @@ abstract class ApiClient {
   Future<CartToggleResponse> toggleCart(
       @Body() Map<String, dynamic> body,
       );
+
+  //remove cart items
+  @DELETE("zippfans/cart/{cartId}")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<RemoveCartResponse> removeCartItem(@Path("cartId") int cartId);
 }
