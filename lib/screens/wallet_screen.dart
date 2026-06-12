@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/mock_data.dart';
 import '../helpers/database_helper.dart';
 import '../helpers/translations.dart';
+import '../providers/wallet_history_provider.dart';
 import '../providers/wallet_provider.dart';
 
 class WalletScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,7 @@ class _WalletScreenState
   final TextEditingController _amountController = TextEditingController();
   final FocusNode _amountFocusNode = FocusNode();
   List<Map<String, dynamic>> _transactions = [];
-  final List<double> _quickAmounts = [10, 25, 50, 100, 200, 500];
+ // final List<double> _quickAmounts = [10, 25, 50, 100, 200, 500];
   bool _isLoadingBalance = true;
   late TabController _tabController;
 
@@ -181,41 +182,41 @@ class _WalletScreenState
 
                 Row(
                   children: [
-                    Text(context.tr.quickAmounts, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: theme.textTheme.bodyMedium?.color)),
+                    //Text(context.tr.quickAmounts, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: theme.textTheme.bodyMedium?.color)),
                     const Spacer(),
 
-                    OutlinedButton(
-                      onPressed: () {
-                        _amountController.clear();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(context.tr.amountCleared),
-                            duration: const Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: theme.brightness == Brightness.light 
-                          ? const Color(0xFFF8F9FA) 
-                          : theme.colorScheme.surfaceContainerHighest,
-                        foregroundColor: theme.textTheme.bodyMedium?.color,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        minimumSize: const Size(0, 32),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: BorderSide(color: theme.dividerColor),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.clear, size: 14, color: theme.textTheme.bodyMedium?.color),
-                          const SizedBox(width: 4),
-                          Text(context.tr.clear, style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color)),
-                        ],
-                      ),
-                    ),
+                    // OutlinedButton(
+                    //   onPressed: () {
+                    //     _amountController.clear();
+                    //     ScaffoldMessenger.of(context).showSnackBar(
+                    //       SnackBar(
+                    //         content: Text(context.tr.amountCleared),
+                    //         duration: const Duration(seconds: 1),
+                    //       ),
+                    //     );
+                    //   },
+                    //   style: OutlinedButton.styleFrom(
+                    //     backgroundColor: theme.brightness == Brightness.light
+                    //       ? const Color(0xFFF8F9FA)
+                    //       : theme.colorScheme.surfaceContainerHighest,
+                    //     foregroundColor: theme.textTheme.bodyMedium?.color,
+                    //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    //     minimumSize: const Size(0, 32),
+                    //     shape: RoundedRectangleBorder(
+                    //       borderRadius: BorderRadius.circular(8),
+                    //       side: BorderSide(color: theme.dividerColor),
+                    //     ),
+                    //     elevation: 0,
+                    //   ),
+                    //   child: Row(
+                    //     mainAxisSize: MainAxisSize.min,
+                    //     children: [
+                    //       Icon(Icons.clear, size: 14, color: theme.textTheme.bodyMedium?.color),
+                    //       const SizedBox(width: 4),
+                    //       Text(context.tr.clear, style: TextStyle(fontSize: 12, color: theme.textTheme.bodyMedium?.color)),
+                    //     ],
+                    //   ),
+                    // ),
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -223,87 +224,87 @@ class _WalletScreenState
                   height: 40,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: _quickAmounts.length,
+                   // itemCount: _quickAmounts.length,
                     itemBuilder: (context, index) {
-                      final amount = _quickAmounts[index];
+                     // final amount = _quickAmounts[index];
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: ElevatedButton(
-                          onPressed: () {
-                            _amountController.text = amount.toStringAsFixed(0);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.brightness == Brightness.light 
-                              ? const Color(0xFFF8F9FA) 
-                              : theme.colorScheme.surfaceContainerHighest,
-                            foregroundColor: theme.textTheme.bodyMedium?.color,
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                              side: BorderSide(color: theme.dividerColor),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text("+${context.tr.currencySymbol}${amount.toStringAsFixed(0)}"),
-                        ),
+                        // child: ElevatedButton(
+                        //   // onPressed: () {
+                        //   //   _amountController.text = amount.toStringAsFixed(0);
+                        //   // },
+                        //   style: ElevatedButton.styleFrom(
+                        //     backgroundColor: theme.brightness == Brightness.light
+                        //       ? const Color(0xFFF8F9FA)
+                        //       : theme.colorScheme.surfaceContainerHighest,
+                        //     foregroundColor: theme.textTheme.bodyMedium?.color,
+                        //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        //     shape: RoundedRectangleBorder(
+                        //       borderRadius: BorderRadius.circular(8),
+                        //       side: BorderSide(color: theme.dividerColor),
+                        //     ),
+                        //     elevation: 0,
+                        //   ),
+                        //   child: Text("+${context.tr.currencySymbol}${amount.toStringAsFixed(0)}"),
+                        // ),
                       );
                     },
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _amountController,
-                        focusNode: _amountFocusNode,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          hintText: context.tr.enterAmount,
-                          hintStyle: TextStyle(color: theme.hintColor),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: Color(0xFFDB2777), width: 1.5),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: Color(0xFFDB2777), width: 1.5),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: const BorderSide(color: Color(0xFFDB2777), width: 2.5),
-                          ),
-                          disabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                            borderSide: BorderSide(color: theme.dividerColor, width: 1),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                          filled: true,
-                          fillColor: theme.brightness == Brightness.light 
-                            ? const Color(0xFFF8F9FA) 
-                            : theme.colorScheme.surfaceContainerHighest,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    ElevatedButton(
-                      onPressed: () {
-                        final amount = double.tryParse(_amountController.text) ?? 0.0;
-                        _deposit(amount);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDB2777),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(context.tr.deposit),
-                    ),
-                  ],
-                ),
+                //
+                // Row(
+                //   children: [
+                //     Expanded(
+                //       child: TextField(
+                //         controller: _amountController,
+                //         focusNode: _amountFocusNode,
+                //         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                //         decoration: InputDecoration(
+                //           hintText: context.tr.enterAmount,
+                //           hintStyle: TextStyle(color: theme.hintColor),
+                //           border: OutlineInputBorder(
+                //             borderRadius: BorderRadius.circular(8),
+                //             borderSide: const BorderSide(color: Color(0xFFDB2777), width: 1.5),
+                //           ),
+                //           enabledBorder: OutlineInputBorder(
+                //             borderRadius: BorderRadius.circular(8),
+                //             borderSide: const BorderSide(color: Color(0xFFDB2777), width: 1.5),
+                //           ),
+                //           focusedBorder: OutlineInputBorder(
+                //             borderRadius: BorderRadius.circular(8),
+                //             borderSide: const BorderSide(color: Color(0xFFDB2777), width: 2.5),
+                //           ),
+                //           disabledBorder: OutlineInputBorder(
+                //             borderRadius: BorderRadius.circular(8),
+                //             borderSide: BorderSide(color: theme.dividerColor, width: 1),
+                //           ),
+                //           contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                //           filled: true,
+                //           fillColor: theme.brightness == Brightness.light
+                //             ? const Color(0xFFF8F9FA)
+                //             : theme.colorScheme.surfaceContainerHighest,
+                //         ),
+                //       ),
+                //     ),
+                //     const SizedBox(width: 12),
+                //     ElevatedButton(
+                //       onPressed: () {
+                //         final amount = double.tryParse(_amountController.text) ?? 0.0;
+                //         _deposit(amount);
+                //       },
+                //       style: ElevatedButton.styleFrom(
+                //         backgroundColor: const Color(0xFFDB2777),
+                //         foregroundColor: Colors.white,
+                //         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                //         shape: RoundedRectangleBorder(
+                //           borderRadius: BorderRadius.circular(8),
+                //         ),
+                //       ),
+                //       child: Text(context.tr.deposit),
+                //     ),
+                //   ],
+                // ),
               ],
             ),
           ),
@@ -313,111 +314,173 @@ class _WalletScreenState
   }
 
   Widget _buildHistoryTab(ThemeData theme) {
-    if (_transactions.isEmpty) {
-      return Center(
+    final historyAsync = ref.watch(walletHistoryProvider);
+
+    return historyAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(color: Color(0xFFDB2777)),
+      ),
+      error: (e, _) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 64,
-              color: theme.hintColor.withValues(alpha: 0.5),
-            ),
+            Icon(Icons.error_outline,
+                color: theme.hintColor, size: 48),
             const SizedBox(height: 16),
-            Text(
-              context.tr.noWalletTransactions,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: theme.textTheme.bodyLarge?.color,
-              ),
-            ),
+            Text('Failed to load history',
+                style: TextStyle(
+                    color: theme.textTheme.bodyLarge?.color,
+                    fontSize: 16)),
             const SizedBox(height: 8),
-            Text(
-              context.tr.walletTransactionHistoryDesc,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12,
-                color: theme.hintColor,
-              ),
+            TextButton(
+              onPressed: () => ref.invalidate(walletHistoryProvider),
+              child: const Text('Retry',
+                  style: TextStyle(color: Color(0xFFDB2777))),
             ),
           ],
         ),
-      );
-    }
+      ),
+      data: (response) {
+        if (response.data.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.account_balance_wallet_outlined,
+                    size: 64,
+                    color: theme.hintColor.withValues(alpha: 0.5)),
+                const SizedBox(height: 16),
+                Text(
+                  context.tr.noWalletTransactions,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: theme.textTheme.bodyLarge?.color),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.tr.walletTransactionHistoryDesc,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: theme.hintColor),
+                ),
+              ],
+            ),
+          );
+        }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: _transactions.length,
-      itemBuilder: (context, index) {
-        final transaction = _transactions[index];
-        final type = transaction['type'] as String;
-        final amount = transaction['amount'] as double;
-        final description = transaction['description'] as String;
-        final date = transaction['date'] as DateTime?;
-        
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: theme.dividerColor.withValues(alpha: 0.5)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: type == 'deposit' 
-                    ? const Color(0xFF4CAF50).withValues(alpha: 0.1)
-                    : const Color(0xFFDB2777).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  type == 'deposit' ? Icons.arrow_downward : Icons.arrow_upward,
-                  color: type == 'deposit' ? const Color(0xFF4CAF50) : const Color(0xFFDB2777),
-                  size: 20,
-                ),
+        return ListView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: response.data.length,
+          itemBuilder: (context, index) {
+            final tx = response.data[index];
+            final isDeposit = tx.type == 'deposit';
+
+            // Format date
+            String formattedDate = tx.createdAt;
+            try {
+              final dt = DateTime.parse(tx.createdAt);
+              formattedDate =
+              '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} '
+                  '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+            } catch (_) {}
+
+            return Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: theme.dividerColor.withValues(alpha: 0.5)),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _localizeDescription(description, amount),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: theme.textTheme.bodyLarge?.color,
-                      ),
+              child: Row(
+                children: [
+                  // ── Icon ──────────────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isDeposit
+                          ? const Color(0xFF4CAF50).withValues(alpha: 0.1)
+                          : const Color(0xFFDB2777).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      date != null 
-                        ? "${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}"
-                        : context.tr.dateNotAvailable,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: theme.hintColor,
-                      ),
+                    child: Icon(
+                      isDeposit
+                          ? Icons.arrow_downward
+                          : Icons.arrow_upward,
+                      color: isDeposit
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFFDB2777),
+                      size: 20,
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // ── Description + date ─────────────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isDeposit ? 'Wallet Deposit' : 'Payment',
+                          style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: theme.textTheme.bodyLarge?.color),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          formattedDate,
+                          style: TextStyle(
+                              fontSize: 12, color: theme.hintColor),
+                        ),
+                        const SizedBox(height: 2),
+                        // Status badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: tx.status == 'completed'
+                                ? const Color(0xFF4CAF50).withValues(alpha: 0.12)
+                                : tx.status == 'pending'
+                                ? Colors.orange.withValues(alpha: 0.12)
+                                : Colors.red.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            tx.status[0].toUpperCase() +
+                                tx.status.substring(1),
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: tx.status == 'completed'
+                                  ? const Color(0xFF4CAF50)
+                                  : tx.status == 'pending'
+                                  ? Colors.orange
+                                  : Colors.red,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ── Amount ─────────────────────────────────────────────
+                  Text(
+                    '${isDeposit ? '+' : '-'}${context.tr.currencySymbol}'
+                        '${double.tryParse(tx.amount)?.toStringAsFixed(2) ?? tx.amount}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDeposit
+                          ? const Color(0xFF4CAF50)
+                          : const Color(0xFFDB2777),
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                "${type == 'deposit' ? '+' : '-'}${context.tr.currencySymbol}${amount.toStringAsFixed(2)}",
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: type == 'deposit' 
-                    ? const Color(0xFF4CAF50)
-                    : const Color(0xFFDB2777),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         );
       },
     );

@@ -6,6 +6,7 @@ import '../models/block_response.dart';
 import '../models/cart_response.dart';
 import '../models/cart_toggle_response.dart';
 import '../models/remove_cart_response.dart';
+import '../models/wallet_history_response.dart';
 import '../models/wallet_payment_response.dart';
 import '../models/comment_response.dart';
 import '../models/connection_response.dart';
@@ -325,4 +326,14 @@ abstract class ApiClient {
   @DELETE("zippfans/cart/{cartId}")
   @Headers(<String, dynamic>{"Accept": "application/json"})
   Future<RemoveCartResponse> removeCartItem(@Path("cartId") int cartId);
+
+  //wallet history
+  @GET("wallet/history")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<WalletHistoryResponse> getWalletHistory();
+
+  //payment transaction history
+  @GET("settings/transactions")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<dynamic> getPaymentTransactions();
 }
