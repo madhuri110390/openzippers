@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:convert';
 import '../providers/add_cart_provider.dart';
 import '../providers/block_provider.dart';
+import '../providers/bookmark_provider.dart';
 import '../providers/cart_provider.dart';
 import '../providers/rating_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -77,6 +78,7 @@ class MainContentArea extends ConsumerStatefulWidget {
   final int? targetPostId;
   final VoidCallback? onRefresh;
   final MockUser? selectedUser;
+
 
   const MainContentArea({
     super.key,
@@ -164,7 +166,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   int _lastFeedIndex = 0;
   final Set<int> _previewingPosts = {};
   final Set<String> _unfollowedAuthors = {};
-
+  List<Map<String, dynamic>> _bookmarkedPosts = [];
+  Set<int> _bookmarkedPostIds = {};
+  bool _bookmarksLoaded = false;
   // Search
   bool _isSearching = false;
   Timer? _searchTimer;
@@ -329,7 +333,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     } else if (idx == 1) {
       base = _myPosts;
     }else if (idx == 2) {
-      base = widget.bookmarkedPosts;
+      base = _bookmarkedPosts;
     } else {
       base = [];
     }
@@ -355,6 +359,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   @override
   void initState() {
     super.initState();
+    _loadBookmarkedIds();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     if (widget.posts.isNotEmpty) _isLoading = false;
@@ -374,7 +379,36 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     _startLoadingTimeout();
   }
   List<Map<String, dynamic>> _myPosts = [];
+  Future<void> _loadBookmarkedIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final ids = prefs.getStringList('bookmarked_post_ids') ?? [];
+    if (mounted) {
+      setState(() {
+        _bookmarkedPostIds = ids.map((e) => int.tryParse(e) ?? -1).toSet();
+      });
+    }
+  }
 
+  Future<void> _saveBookmarkedIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      'bookmarked_post_ids',
+      _bookmarkedPostIds.map((e) => e.toString()).toList(),
+    );
+  }
+  Future<void> _fetchBookmarks() async {
+    if (mounted) {
+      setState(() {
+        _bookmarkedPosts = widget.posts.where((p) {
+          final id = p['id'] is int
+              ? p['id'] as int
+              : int.tryParse(p['id'].toString()) ?? -1;
+          return _bookmarkedPostIds.contains(id);
+        }).toList();
+        _bookmarksLoaded = true;
+      });
+    }
+  }
   Future<void> _fetchMyPosts() async {
 
     final prefs = await SharedPreferences.getInstance();
@@ -1212,7 +1246,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
             icon: Icons.bookmark_border,
             label: context.tr.bookmarks,
             isActive: _selectedIndex == 2,
-            onTap: () => setState(() => _selectedIndex = 2),
+            onTap: () {
+              setState(() => _selectedIndex = 2);
+              _fetchBookmarks();
+            },
           ),
         ),
         const SizedBox(width: 8),
@@ -1287,9 +1324,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
         post['commentsCount'] ??
         _countTopLevelComments(post['comments'] as List? ?? []);
     final isLiked = widget.readPosts.any((p) => p['id'] == post['id']);
-    final isBookmarked = widget.bookmarkedPosts.any(
-      (p) => p['id'] == post['id'],
-    );
+    final isBookmarked = _bookmarkedPosts.any((p) => p['id'] == post['id']);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -1382,9 +1417,34 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         break;
 
                       case 'bookmark':
-                        widget.onPostAction(post, 'ToggleBookmark');
+                        final postId = post['id'] is int
+                            ? post['id'] as int
+                            : int.tryParse(post['id'].toString()) ?? 0;
+                        final result = await ref
+                            .read(bookmarkProvider.notifier)
+                            .toggleBookmark(postId);
+                        if (result == true) {
+                          setState(() {
+                            _bookmarkedPostIds.add(postId);
+                            _bookmarkedPosts.add(post);
+                          });
+                        } else if (result == false) {
+                          setState(() {
+                            _bookmarkedPostIds.remove(postId);
+                            _bookmarkedPosts.removeWhere((p) => p['id'] == post['id']);
+                          });
+                        }
+                        await _saveBookmarkedIds();
+                        final bookmarkState = ref.read(bookmarkProvider);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(bookmarkState.message ?? ''),
+                              backgroundColor: _kPink,
+                            ),
+                          );
+                        }
                         break;
-
                       case 'report':
                         _showReportDialog(post);
                         break;

@@ -3,6 +3,7 @@ import 'package:dio/dio.dart' hide Headers;
 import 'package:retrofit/retrofit.dart';
 import '../models/album_response.dart';
 import '../models/block_response.dart';
+import '../models/bookmark_response.dart';
 import '../models/cart_response.dart';
 import '../models/cart_toggle_response.dart';
 import '../models/remove_cart_response.dart';
@@ -336,4 +337,11 @@ abstract class ApiClient {
   @GET("settings/transactions")
   @Headers(<String, dynamic>{"Accept": "application/json"})
   Future<dynamic> getPaymentTransactions();
+
+  //bookmark post- add & remove
+  @POST("zippfans/bookmarks/toggle")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<BookmarkResponse> toggleBookmark(@Body() Map<String, dynamic> body);
 }
