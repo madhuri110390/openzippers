@@ -141,6 +141,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _loadData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadFeedFromApi();
+
+
     });
   }
 
@@ -344,78 +346,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       default: return 'Image';
     }
   }
+
   Future<void> _loadFeedFromApi() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('auth_token');
-
-    debugPrint('=== FEED LOAD TRIGGERED ===');
-    debugPrint('=== TOKEN: $token ===');
-
-    if (token == null || token.isEmpty) {
-      debugPrint('=== NO TOKEN FOUND - ABORTING ===');
-      return;
-    }
+    if (token == null || token.isEmpty) return;
 
     try {
       await ref.read(feedViewModelProvider.notifier).loadFeed();
       final feedState = ref.read(feedViewModelProvider);
 
-      debugPrint('=== FEED STATUS: ${feedState.status} ===');
-      debugPrint('=== FEED POSTS: ${feedState.posts.length} ===');
-      debugPrint('=== FEED ERROR: ${feedState.errorMessage} ===');
-
       if (feedState.posts.isNotEmpty && mounted) {
-        // final mapped = feedState.posts.map((p) => {
-        //   'id': p.id,
-        //   'title': p.title,
-        //   'author': p.user.name,
-        //
-        //   // ── Avatar fixes ──────────────────────────
-        //   'avatar': p.user.avatar ?? '',
-        //   'avatar_url': p.user.avatar ?? '',
-        //   'authorAvatar': p.user.avatar ?? '',   // ← ADD
-        //   'userAvatar': p.user.avatar ?? '',     // ← ADD
-        //
-        //   'text': p.text,
-        //   'content': p.text,                     // ← ADD (some widgets use 'content')
-        //
-        //   // ── Type fixes ────────────────────────────
-        //   'type': _toWidgetType(p.postType.name), // ← ADD (widget reads 'type')
-        //   'post_type': p.postType.name,           // keep existing
-        //
-        //   // ── Media URLs ────────────────────────────
-        //   'image': p.image,
-        //   'audio_url': p.audioUrl,
-        //   'video_url': p.videoUrl,
-        //   'literature_url': p.literatureUrl,
-        //   'preview_url': p.previewUrl,
-        //   'duration': p.duration,
-        //
-        //   'likeCount': p.likesCount,
-        //   'commentsCount': p.commentsCount,
-        //   'comments': p.comments,
-        //   'is_liked': p.isLiked,
-        //   'is_bookmarked': p.isBookmarked,
-        //   'is_premium': p.isPremium,
-        //   'price': p.price,
-        //   'in_cart': p.inCart,
-        //   'is_purchased': p.isPurchased,
-        //   'vat_percent': p.vatPercent,
-        //   'average_rating': p.averageRating,
-        //   'total_ratings': p.totalRatings,
-        //   'date': p.createdAt,
-        //   'views': p.views,
-        //   'fans_status': p.fansStatus,
-        //   'isUserPost': false,
-        //   'verified': p.user.verified,           // ← ADD
-        // }).toList();
-
         final mapped = <Map<String, dynamic>>[];
 
         for (final p in feedState.posts) {
           int width = 0;
           int height = 0;
-
           if (p.image != null && p.image!.isNotEmpty) {
             try {
               final size = await getImageSize(p.image!);
@@ -428,6 +374,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             'id': p.id,
             'title': p.title,
             'author': p.user.name,
+            'user_id': p.user.id,   // ← make sure this is here
             'avatar': p.user.avatar ?? '',
             'avatar_url': p.user.avatar ?? '',
             'authorAvatar': p.user.avatar ?? '',
@@ -463,17 +410,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             'post_width': width,
             'post_height': height,
           });
-          if (mounted) {
-            setState(() {
-              _communityPosts = mapped;
-              _feedLoaded = true;
-            });
-            await _saveCachedFeed(prefs, mapped);
-          }
+        }
 
+        // ← outside the for loop
+        if (mounted) {
+          setState(() {
+            _communityPosts = mapped;
+            _feedLoaded = true;
+          });
           await _saveCachedFeed(prefs, mapped);
         }
-      }} catch (e, stack) {
+      }
+    } catch (e, stack) {
       debugPrint('=== FEED EXCEPTION: $e ===');
       debugPrint('=== STACK: $stack ===');
     }
@@ -770,32 +718,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     _upcomingRenewalNotificationsEnabled = prefs.getBool(
         'upcoming_renewal_notifications_enabled_${currentUser.username}') ??
         false;
-    if (authToken != null && authToken.isNotEmpty) {
-      try {
-        await ref.read(feedViewModelProvider.notifier).loadFeed();
-
-        final feedState = ref.read(feedViewModelProvider);
-
-        if (feedState.posts.isNotEmpty && mounted) {
-          setState(() {
-            _communityPosts = feedState.posts.map((p) => {
-              'id': p.id,
-              'title': p.title,
-              'author': p.user.name,
-              'avatar': p.user.avatar ?? '',
-              'text': p.text,
-              'image': p.image,
-              'video_url': p.videoUrl,
-              'audio_url': p.audioUrl,
-              'literature_url': p.literatureUrl,
-              'fans_status': p.fansStatus,
-            }).toList();
-          });
-        }
-      } catch (e) {
-        debugPrint('Feed API Error: $e');
-      }
-    }
+    // if (authToken != null && authToken.isNotEmpty) {
+    //   try {
+    //     await ref.read(feedViewModelProvider.notifier).loadFeed();
+    //
+    //     final feedState = ref.read(feedViewModelProvider);
+    //
+    //     if (feedState.posts.isNotEmpty && mounted) {
+    //       setState(() {
+    //         _communityPosts = feedState.posts.map((p) => {
+    //           'id': p.id,
+    //           'title': p.title,
+    //           'author': p.user.name,
+    //           'avatar': p.user.avatar ?? '',
+    //           'text': p.text,
+    //           'image': p.image,
+    //           'video_url': p.videoUrl,
+    //           'audio_url': p.audioUrl,
+    //           'literature_url': p.literatureUrl,
+    //           'fans_status': p.fansStatus,
+    //         }).toList();
+    //       });
+    //     }
+    //   } catch (e) {
+    //     debugPrint('Feed API Error: $e');
+    //   }
+    // }
 
     _loadSavedNotifications(prefs);
     _loadNotifications();
@@ -3034,7 +2982,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     }
 
     _syncPageController();
-
     final filteredPosts = _allPosts.where((p) {
       if (_targetPostIdFromNotification != null &&
           p['id']?.toString() == _targetPostIdFromNotification.toString()) {
@@ -3042,12 +2989,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       }
       final authorName = p['author'] as String?;
       final currentUser = _getCurrentUser();
-      if (authorName == currentUser.name) return true;
+      if (authorName == currentUser.name ||
+          authorName == 'You' ||
+          authorName?.toLowerCase() == currentUser.username.toLowerCase()) {
+        return true;
+      }
       final isBlocked = _allUsers.any((u) =>
-      u.name == authorName &&
+      (u.name == authorName || u.username == authorName) &&
           (u.type == 'blocked' || u.type == 'blocked_by'));
       return !isBlocked;
     }).toList();
+    debugPrint('=== _allPosts: ${_allPosts.length}');
+    debugPrint('=== _communityPosts: ${_communityPosts.length}');
+    debugPrint('=== _userPosts: ${_userPosts.length}');
+    debugPrint('=== filteredPosts: ${filteredPosts.length}');
+    // final filteredPosts = _allPosts.where((p) {
+    //   if (_targetPostIdFromNotification != null &&
+    //       p['id']?.toString() == _targetPostIdFromNotification.toString()) {
+    //     return true;
+    //   }
+    //   final authorName = p['author'] as String?;
+    //   final currentUser = _getCurrentUser();
+    //   if (authorName == currentUser.name) return true;
+    //   final isBlocked = _allUsers.any((u) =>
+    //   u.name == authorName &&
+    //       (u.type == 'blocked' || u.type == 'blocked_by'));
+    //   return !isBlocked;
+    // }).toList();
 
     final nonBlockedUsers = _allUsers
         .where((u) => u.type != 'blocked' && u.type != 'blocked_by')
@@ -3152,7 +3120,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           },
         )
             : MainContentArea(
-          key: _mainContentKey,
+          key: ValueKey('feed_${filteredPosts.length}'),
           posts: filteredPosts,
           searchQuery: _searchQuery,
           selectedUser: _selectedHomeUser,
@@ -3364,11 +3332,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         break;
       case 'Unblock':
         await _dbHelper.unblockUser(currentUser.username, user.username);
+        ref.invalidate(connectionsProvider(currentUser.username));
+        ref.invalidate(connectionsProvider(user.username));
         break;
       case 'Follow':
         await _dbHelper.followUser(currentUser.username, user.username);
         break;
       case 'Block':
+        await _dbHelper.blockUser(currentUser.username, user.username);
+        // ← invalidate so connections blocked tab refreshes
+        ref.invalidate(connectionsProvider(currentUser.username));
+        ref.invalidate(connectionsProvider(user.username));
         await _dbHelper.blockUser(currentUser.username, user.username);
         break;
       case 'Subscribe':
@@ -3385,6 +3359,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     // Only reload relationships — not the full _loadData()
     await _loadRelationships();
+    if (mounted) setState(() {});
+
   }
 
   String _getDisplayStats(MockUser user, String type) {

@@ -270,9 +270,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (_isFollowingOverride == null) {
           _isFollowingOverride = amFollowing;
         }
-        if (_isBlockedOverride == null && isBlocked) {
-          _isBlockedOverride = true;
-        }
+        // ← Always sync blocked state from server, not just on first load
+        _isBlockedOverride = isBlocked;
       });
     } catch (e) {
       debugPrint('_fetchConnectionCounts error: $e');
@@ -992,7 +991,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (effectiveUser.type == 'blocked') {
+    final isCurrentlyBlocked = _isBlockedOverride ?? (effectiveUser.type == 'blocked');
+    if (isCurrentlyBlocked) {
       return Scaffold(
         appBar: AppBar(
           title: Text(effectiveUser.username),
@@ -1036,23 +1036,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     Text(context.tr.unblockToSeePosts,
                         style: TextStyle(color: theme.hintColor)),
                     const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        widget.onUserAction?.call(effectiveUser, 'Unblock');
-                        setState(() {
-                          if (widget.user != null) _refreshUserData();
-                        });
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDB2777),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: Text(context.tr.unblockBtn),
-                    ),
+              ElevatedButton(
+                onPressed: () async {
+                  final userId = effectiveUser.id;
+                  if (userId == null) {
+                    widget.onUserAction?.call(effectiveUser, 'Unblock');
+                    setState(() => _isBlockedOverride = false);
+                    return;
+                  }
+                  try {
+                    final res = await ref
+                        .read(blockProvider.notifier)
+                        .toggleBlock(userId);
+                    if (res != null && mounted) {
+                      setState(() => _isBlockedOverride = res.data.isBlocked);
+                      widget.onUserAction?.call(
+                        effectiveUser,
+                        res.data.isBlocked ? 'Block' : 'Unblock',
+                      );
+                      ref.invalidate(connectionsProvider(widget.currentUser.username));
+                      ref.invalidate(connectionsProvider(effectiveUser.username));
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(res.message)));
+                    }
+                  } catch (e) {
+                    if (mounted) ScaffoldMessenger.of(context)
+                        .showSnackBar(SnackBar(content: Text('Error: $e')));
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFDB2777),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                child: Text(context.tr.unblockBtn),
+              ),
                   ])),
         ]),
       );

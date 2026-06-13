@@ -9,6 +9,8 @@ import '../providers/add_cart_provider.dart';
 import '../providers/block_provider.dart';
 import '../providers/bookmark_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/connections_provider.dart';
+import '../providers/follow_provider.dart';
 import '../providers/rating_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../screens/cart_screen.dart';
@@ -116,6 +118,8 @@ class MainContentArea extends ConsumerStatefulWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class MainContentAreaState extends ConsumerState<MainContentArea>
     with AutomaticKeepAliveClientMixin, WidgetsBindingObserver {
+  @override
+  bool get wantKeepAlive => true;
   MockUser? _localUserOverride;
 
   MockUser get effectiveUser {
@@ -130,8 +134,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     return baseUser;
   }
 
-  @override
-  bool get wantKeepAlive => true;
+
 
   // Loading / refresh
   bool _isLoading = true;
@@ -141,7 +144,8 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   bool _isAutoRefreshing = false;
   int _autoRefreshAttempts = 0;
   static const int _maxAutoRefreshAttempts = 6;
-
+  final Set<int> _unfollowedUserIds = {};
+  final Set<int> _blockedUserIds={};
   // UI state
   final Set<String> _typingPostIds = {};
   final Set<String> _expandedPostIds = {};
@@ -323,8 +327,6 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
   // ── Filtered posts ─────────────────────────────────────────────────────────
   List<Map<String, dynamic>> get _filteredPosts {
-
-
     int idx = _selectedIndex == 4 ? _lastFeedIndex : _selectedIndex;
 
     List<Map<String, dynamic>> base;
@@ -332,7 +334,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       base = widget.posts.toList();
     } else if (idx == 1) {
       base = _myPosts;
-    }else if (idx == 2) {
+    } else if (idx == 2) {
       base = _bookmarkedPosts;
     } else {
       base = [];
@@ -342,8 +344,18 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       if (widget.targetPostId != null &&
           p['id']?.toString() == widget.targetPostId.toString())
         return true;
+
+      // ── Filter by user_id (from API) ──────────────────────────
+      final userId = p['user_id'] is int
+          ? p['user_id'] as int
+          : int.tryParse(p['user_id']?.toString() ?? '');
+      if (userId != null && _unfollowedUserIds.contains(userId)) return false;
+      if (userId != null && _blockedUserIds.contains(userId)) return false;
+
+      // ── Filter by author name (fallback) ──────────────────────
       final author = p['author']?.toString().trim() ?? '';
       if (_unfollowedAuthors.contains(author)) return false;
+
       final fans = p['zippfansStatus'] ?? p['fans_status'] ?? 0;
       if (fans == 1 &&
           !_isOwnPost(p) &&
@@ -359,6 +371,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
   @override
   void initState() {
     super.initState();
+    if (widget.posts.isNotEmpty) _isLoading = false;
     _loadBookmarkedIds();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
@@ -426,10 +439,11 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
       if (mounted) setState(() => _myPosts = List<Map<String, dynamic>>.from(data['data'] ?? []));
     }
   }
+
   @override
   void didUpdateWidget(MainContentArea oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_isLoading && widget.posts.isNotEmpty) {
+    if (widget.posts.isNotEmpty && _isLoading) {
       _loadingTimeoutTimer?.cancel();
       _autoRefreshTimer?.cancel();
       _isAutoRefreshing = false;
@@ -451,10 +465,10 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     if (widget.currentUser.username != oldWidget.currentUser.username) {
       _loadAlbums();
     }
-    if (oldWidget.posts != widget.posts) {
-      _unfollowedAuthors.clear();
-      if (mounted) setState(() {});
-    }
+    // if (oldWidget.posts != widget.posts) {
+    //   _unfollowedAuthors.clear();
+    //   if (mounted) setState(() {});
+    // }
     if (oldWidget.searchQuery != widget.searchQuery) {
       _handleSearchQueryChange();
     }
@@ -761,6 +775,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     showDialog(
       context: context,
       builder: (context) {
+        if (_isLoading) return _buildShimmerLoader();
         final theme = Theme.of(context);
         return StatefulBuilder(
           builder: (context, ss) => Dialog(
@@ -1020,7 +1035,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           // ── Main feed / search ──────────────────────────────────────────
           Builder(
             builder: (context) {
-              if (_isLoading) return _buildShimmerLoader();
+              if (_isLoading && widget.posts.isEmpty) return _buildShimmerLoader();
 
               final showSearch =
                   searchState.users.isNotEmpty && widget.searchQuery.isNotEmpty;
@@ -1458,38 +1473,77 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                         break;
 
                       case 'unfollow':
-                        setState(() => _unfollowedAuthors.add(
-                            post['author']?.toString().trim() ?? ''));
-                        widget.onUserAction?.call(author, 'Unfollow');
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Unfollowed ${author.name}')));
+                      // Get user_id directly from post map (more reliable than author.id)
+                        final postUserId = post['user_id'] is int
+                            ? post['user_id'] as int
+                            : int.tryParse(post['user_id']?.toString() ?? '');
+
+                        if (postUserId != null) {
+                          try {
+                            final res = await ref
+                                .read(followProvider.notifier)
+                                .toggleFollow(postUserId);
+                            if (res != null && mounted) {
+                              setState(() {
+                                _unfollowedAuthors.add(post['author']?.toString().trim() ?? '');
+                                if (!res.data.isFollowing) _unfollowedUserIds.add(postUserId);
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                content: Text(res.data.isFollowing
+                                    ? 'Followed ${author.name}'
+                                    : 'Unfollowed ${author.name}'),
+                              ));
+                            }
+                          } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text('Error: $e')));
+                          }
+                        } else {
+                          // fallback — no API id available
+                          setState(() => _unfollowedAuthors.add(
+                              post['author']?.toString().trim() ?? ''));
+   await Future.delayed(const Duration(milliseconds: 800));
+        if (mounted) {
+          ref.invalidate(connectionsProvider(widget.currentUser.username));
+        }                        ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Unfollowed ${author.name}')));
+                        }
                         break;
 
                       case 'block':
-                      // Call blockProvider directly for instant UI feedback
-                        final userId = author.id;
-                        if (userId != null) {
+                        final postUserId = post['user_id'] is int
+                            ? post['user_id'] as int
+                            : int.tryParse(post['user_id']?.toString() ?? '');
+
+                        if (postUserId != null) {
                           try {
                             final res = await ref
                                 .read(blockProvider.notifier)
-                                .toggleBlock(userId);
+                                .toggleBlock(postUserId);
                             if (res != null && mounted) {
-                              // Remove their posts from feed instantly
-                              setState(() => _unfollowedAuthors.add(
-                                  post['author']?.toString().trim() ?? ''));
+                              setState(() {
+                                _unfollowedAuthors.add(post['author']?.toString().trim() ?? '');
+                                if (res.data.isBlocked) _blockedUserIds.add(postUserId);
+                              });
+                              // Invalidate immediately
+                              ref.invalidate(connectionsProvider(widget.currentUser.username));
                               widget.onUserAction?.call(author, 'Block');
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text(res.message)));
+                              ScaffoldMessenger.of(context)
+                                  .showSnackBar(SnackBar(content: Text(res.message)));
+                              // ← ADD: wait for server to process, then invalidate again
+                              await Future.delayed(const Duration(milliseconds: 800));
+                              if (mounted) {
+                                ref.invalidate(connectionsProvider(widget.currentUser.username));
+                              }
                             }
                           } catch (e) {
-                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Error: $e')));
+                            if (mounted) ScaffoldMessenger.of(context)
+                                .showSnackBar(SnackBar(content: Text('Error: $e')));
                           }
                         } else {
-                          // fallback if no server id
-                          widget.onUserAction?.call(author, 'Block');
                           setState(() => _unfollowedAuthors.add(
                               post['author']?.toString().trim() ?? ''));
+                          widget.onUserAction?.call(author, 'Block');
                           ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(content: Text('${author.name} blocked')));
                         }
@@ -1515,41 +1569,9 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
                       ),
                     ),
 
-                    const PopupMenuItem<String>(
-                      value: 'send_to_ozvault',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.download_outlined,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Send To OzVault',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
 
-                    const PopupMenuItem<String>(
-                      value: 'playlist',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.playlist_add_outlined,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Add to Playlist',
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ],
-                      ),
-                    ),
+
+
 
                     const PopupMenuItem<String>(
                       value: 'bookmark',
