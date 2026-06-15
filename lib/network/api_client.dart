@@ -9,6 +9,7 @@ import '../models/bookmark_response.dart';
 import '../models/cart_response.dart';
 import '../models/cart_toggle_response.dart';
 import '../models/remove_cart_response.dart';
+import '../models/report_response.dart';
 import '../models/wallet_history_response.dart';
 import '../models/wallet_payment_response.dart';
 import '../models/comment_response.dart';
@@ -367,4 +368,11 @@ abstract class ApiClient {
   @POST("zippfans/albums/purchase/wallet")
   @Headers(<String, dynamic>{"Accept": "application/json"})
   Future<AlbumPurchaseResponse> purchaseAlbum(@Body() Map<String, dynamic> body);
+
+  //report post
+  @POST("zippfans/reports/post")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<ReportResponse> reportPost(@Body() Map<String, dynamic> body);
 }

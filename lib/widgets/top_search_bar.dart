@@ -206,13 +206,7 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                     ),
                   ),
                   const SizedBox(width: 6),
-                  if (widget.currentUser?.isArtist == true)
-                    _NavIconButton(
-                      icon: Icons.edit_outlined,
-                      isDark: isDark,
-                      tooltip: context.tr.createPost,
-                      onPressed: widget.onCreateTap,
-                    ),
+
                   Consumer(
                     builder: (context, ref, _) {
                       final cartAsync = ref.watch(cartProvider);
@@ -234,47 +228,7 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                       );
                     },
                   ),
-                  ValueListenableBuilder<List<Map<String, dynamic>>>(
-                    valueListenable:
-                    widget.notificationsNotifier ?? ValueNotifier([]),
-                    builder: (context, notifications, _) {
-                      final unreadCount =
-                          notifications.where((n) => n['isRead'] != true).length;
-                      return _BadgedIconButton(
-                        icon: Icons.notifications_outlined,
-                        badgeCount: unreadCount,
-                        isDark: isDark,
-                        onPressed: () {
-                          final currentUser = widget.currentUser;
-                          final onNotificationsUpdated =
-                              widget.onNotificationsUpdated;
-                          final notificationsNotifier = widget.notificationsNotifier;
-                          if (currentUser != null &&
-                              onNotificationsUpdated != null) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    ValueListenableBuilder<List<Map<String, dynamic>>>(
-                              valueListenable:
-                              notificationsNotifier ?? ValueNotifier([]),
-                              builder: (context, currentNotifications, _) {
-                                return NotificationsScreen(
-                                  notifications: currentNotifications,
-                                  onBack: () => Navigator.pop(context),
-                                  onNotificationsUpdated: onNotificationsUpdated,
-                                  currentUser: currentUser,
-                                  onNotificationTap: widget.onNotificationTap,
-                                );
-                              },
-                              ),
-                              ),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
+
                 ],
               ),
             ),

@@ -14,6 +14,7 @@ import '../providers/follow_provider.dart';
 import '../providers/rating_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../screens/cart_screen.dart';
+import '../viewmodels/report_viewmodel.dart';
 import '../viewmodels/search_viewmodel.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
@@ -331,7 +332,7 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
 
     List<Map<String, dynamic>> base;
     if (idx == 0) {
-      base = widget.posts.toList();
+      base = widget.posts.where((p) => !_isOwnPost(p)).toList();
     } else if (idx == 1) {
       base = _myPosts;
     } else if (idx == 2) {
@@ -423,21 +424,12 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     }
   }
   Future<void> _fetchMyPosts() async {
-
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-    final response = await http.get(
-      Uri.parse('https://openzippers.com/api/v1/zippfans/posts/my-posts'),
-      headers: {
-        'Accept': 'application/json',
-        'Authorization': 'Bearer $token',
-      },
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      debugPrint('response: ${response.body}');
-      if (mounted) setState(() => _myPosts = List<Map<String, dynamic>>.from(data['data'] ?? []));
+    final mine = widget.posts.where((p) => _isOwnPost(p)).toList();
+    debugPrint('My posts found: ${mine.length} out of ${widget.posts.length}');
+    for (final p in widget.posts.take(3)) {
+      debugPrint('post author="${p['author']}" | currentUser name="${widget.currentUser.name}" username="${widget.currentUser.username}"');
     }
+    if (mounted) setState(() => _myPosts = mine);
   }
 
   @override
@@ -768,84 +760,158 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
     );
     await Share.share(text, subject: post['title']);
   }
-
   void _showReportDialog(Map<String, dynamic> post) {
-    String selected = context.tr.selectCategory;
+    // Map display label → API reason value
+    final reasonMap = {
+      context.tr.categorySpam: 'spam',
+      context.tr.categoryInappropriate: 'inappropriate',
+      context.tr.categoryHarassment: 'harassment',
+      context.tr.categoryFalseInfo: 'false_information',
+      context.tr.categoryCopyright: 'copyright',
+      context.tr.categoryOther: 'other',
+    };
+
+    String selectedLabel = context.tr.selectCategory;
     final ctrl = TextEditingController();
+
     showDialog(
       context: context,
-      builder: (context) {
-        if (_isLoading) return _buildShimmerLoader();
-        final theme = Theme.of(context);
+      builder: (dialogContext) {
+        final theme = Theme.of(dialogContext);
         return StatefulBuilder(
-          builder: (context, ss) => Dialog(
-            backgroundColor: theme.cardColor,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    context.tr.reportPostFormTitle,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  MenuAnchor(
-                    menuChildren:
-                        [
-                              context.tr.categorySpam,
-                              context.tr.categoryInappropriate,
-                              context.tr.categoryHarassment,
-                              context.tr.categoryFalseInfo,
-                              context.tr.categoryCopyright,
-                              context.tr.categoryOther,
-                            ]
-                            .map(
-                              (e) => MenuItemButton(
-                                onPressed: () => ss(() => selected = e),
-                                child: Text(e),
-                              ),
-                            )
-                            .toList(),
-                    builder: (_, controller, __) => OutlinedButton(
-                      onPressed: () => controller.isOpen
-                          ? controller.close()
-                          : controller.open(),
-                      child: Text(selected),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: ctrl,
-                    maxLines: 3,
-                    decoration: InputDecoration(
-                      hintText: context.tr.enterDescription,
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(context.tr.reportSubmitted),
-                          backgroundColor: _kPink,
-                        ),
-                      );
-                    },
-                    child: Text(context.tr.submit),
-                  ),
-                ],
+          builder: (dialogContext, ss) {
+            final reportState = ref.watch(reportProvider);
+
+            return Dialog(
+              backgroundColor: theme.cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
               ),
-            ),
-          ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Title ───────────────────────────────────────────
+                    Text(
+                      context.tr.reportPostFormTitle,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Category dropdown ────────────────────────────────
+                    MenuAnchor(
+                      menuChildren: reasonMap.keys
+                          .map(
+                            (label) => MenuItemButton(
+                          onPressed: () => ss(() => selectedLabel = label),
+                          child: Text(label),
+                        ),
+                      )
+                          .toList(),
+                      builder: (_, controller, __) => OutlinedButton(
+                        onPressed: () => controller.isOpen
+                            ? controller.close()
+                            : controller.open(),
+                        child: Text(selectedLabel),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ── Description field ─────────────────────────────────
+                    TextField(
+                      controller: ctrl,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: context.tr.enterDescription,
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ── Submit button ─────────────────────────────────────
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _kPink,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        onPressed: reportState.isLoading
+                            ? null
+                            : () async {
+                          // Validate category selected
+                          if (!reasonMap.containsKey(selectedLabel)) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Please select a category'),
+                                backgroundColor: _kPink,
+                              ),
+                            );
+                            return;
+                          }
+
+                          final postId = post['id'] is int
+                              ? post['id'] as int
+                              : int.tryParse(
+                              post['id']?.toString() ?? '') ??
+                              0;
+
+                          final result = await ref
+                              .read(reportProvider.notifier)
+                              .reportPost(
+                            postId: postId,
+                            reason: reasonMap[selectedLabel]!,
+                            description: ctrl.text.trim(),
+                          );
+
+                          if (!mounted) return;
+
+                          // Close dialog regardless of success/failure
+                          Navigator.pop(dialogContext);
+
+                          // Show response message
+                          final msg = result?.message ??
+                              ref.read(reportProvider).message ??
+                              '';
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                msg.isNotEmpty
+                                    ? msg
+                                    : (result?.status == true
+                                    ? context.tr.reportSubmitted
+                                    : 'Report failed'),
+                              ),
+                              backgroundColor: (result?.status == true)
+                                  ? _kPink
+                                  : Colors.red[700],
+                            ),
+                          );
+                        },
+                        child: reportState.isLoading
+                            ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                            : Text(context.tr.submit),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -1244,17 +1310,17 @@ class MainContentAreaState extends ConsumerState<MainContentArea>
           ),
         ),
         const SizedBox(width: 8),
-    Expanded(
-    child: _buildHeaderTab(
-    icon: Icons.person_outline,
-    label: context.tr.myPosts,
-    isActive: _selectedIndex == 1,
-    onTap: () {
-    setState(() => _selectedIndex = 1);
-    _fetchMyPosts();
-    },
-    ),
-    ),
+    // Expanded(
+    // child: _buildHeaderTab(
+    // icon: Icons.person_outline,
+    // label: context.tr.myPosts,
+    // isActive: _selectedIndex == 1,
+    // onTap: () {
+    // setState(() => _selectedIndex = 1);
+    // _fetchMyPosts();
+    // },
+    // ),
+    // ),
         const SizedBox(width: 8),
         Expanded(
           child: _buildHeaderTab(
