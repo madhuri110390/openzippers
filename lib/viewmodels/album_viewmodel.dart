@@ -65,6 +65,7 @@ class AlbumViewModel extends StateNotifier<AsyncValue<AlbumsResponse>> {
     if (imageBase64 != null) {
       body['image_base64'] = imageBase64;
     }
+    debugPrint('CREATE BODY: $body');
     try {
       await AlbumRepository(ApiClient(dio)).createAlbum(body);
     } catch (e) {
@@ -73,7 +74,18 @@ class AlbumViewModel extends StateNotifier<AsyncValue<AlbumsResponse>> {
       }
       rethrow;
     }
-    await loadAlbums();
+    // Refresh without showing loading state
+    _silentRefresh();
+  }
+
+  Future<void> _silentRefresh() async {
+    try {
+      final dio = await _authedDio();
+      final response = await AlbumRepository(ApiClient(dio)).getAlbums();
+      state = AsyncData(response);
+    } catch (e) {
+      debugPrint('Silent refresh error: $e');
+    }
   }
 
   Future<void> updateAlbum({
@@ -99,12 +111,13 @@ class AlbumViewModel extends StateNotifier<AsyncValue<AlbumsResponse>> {
       }
       rethrow;
     }
-    await loadAlbums();
+    _silentRefresh();
   }
 
   Future<void> deleteAlbum(int id) async {
     final dio = await _authedDio();
     await AlbumRepository(ApiClient(dio)).deleteAlbum(id);
+    // Remove locally immediately
     state.whenData((response) {
       state = AsyncData(AlbumsResponse(
         success: response.success,
@@ -114,14 +127,29 @@ class AlbumViewModel extends StateNotifier<AsyncValue<AlbumsResponse>> {
         canCreateAlbum: response.canCreateAlbum,
       ));
     });
+    // Then silent refresh to sync with server
+    _silentRefresh();
   }
 
 
 
+
+
   Future<void> purchaseAlbum(int albumId) async {
+    debugPrint('PURCHASE TAPPED: albumId=$albumId');
     final dio = await _authedDio();
-    await AlbumRepository(ApiClient(dio)).purchaseAlbum({'album_id': albumId});
-    await loadAlbums();
+    try {
+      await AlbumRepository(ApiClient(dio)).purchaseAlbum({'album_id': albumId});
+      debugPrint('PURCHASE SUCCESS');
+    } catch (e) {
+      if (e is DioException) {
+        debugPrint('PURCHASE ERROR: ${e.response?.data}');
+        debugPrint('PURCHASE STATUS: ${e.response?.statusCode}');
+      }
+      debugPrint('PURCHASE EXCEPTION: $e');
+      rethrow;
+    }
+    _silentRefresh();
   }
 
   void deleteLocalAlbums(int albumId) {

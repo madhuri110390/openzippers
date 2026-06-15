@@ -1,3 +1,5 @@
+import 'individual_album_model.dart';
+
 class Album {
   final int id;
   final String title;
@@ -5,6 +7,8 @@ class Album {
   final double? price;
   final bool? isPublic;
   final String? userName;
+  final bool? isOwner;
+  final bool? isPurchased;
   final List<AlbumItem> items;
 
   Album({
@@ -13,6 +17,8 @@ class Album {
     this.coverImage,
     this.price,
     this.userName,
+    this.isOwner,
+    this.isPurchased,
     this.isPublic,
     this.items = const [],
   });
@@ -21,12 +27,14 @@ class Album {
     return Album(
       id: json['id'] ?? 0,
       title: json['title'] ?? '',
-        coverImage: _fixImageUrl(json['image_url'] ?? json['image']), // image_url is broken for my-albums but correct for public
+      coverImage: _fixImageUrl(json['image_url'] ?? json['image']),
       price: json['price'] != null
           ? double.tryParse(json['price'].toString())
           : null,
       isPublic: json['is_public'],
-      userName: json['user']?['name'] ?? json['user_name'],  // add this
+      userName: json['user']?['name'] ?? json['user_name'],
+      isOwner: json['is_owner'],
+      isPurchased: json['is_purchased'],
       items: (json['items'] as List? ?? [])
           .map((e) => AlbumItem.fromJson(e))
           .toList(),
@@ -37,7 +45,7 @@ class Album {
   String toString() =>
       'Album{id: $id, title: $title, coverImage: $coverImage, price: $price, isPublic: $isPublic, items: ${items.length}}';
 }
-// In album_model.dart, outside the Album class
+
 String? _fixImageUrl(String? url) {
   if (url == null) return null;
   const base = 'https://dev-openzippers.s3.us-east-1.amazonaws.com/';
@@ -46,6 +54,7 @@ String? _fixImageUrl(String? url) {
   }
   return url;
 }
+
 class AlbumItem {
   final int id;
   final int albumId;
@@ -54,7 +63,7 @@ class AlbumItem {
   final int sortOrder;
   final String? title;
   final String? postType;
-  final String? fileUrl;   // ADD
+  final String? fileUrl;
 
   AlbumItem({
     required this.id,
@@ -64,7 +73,7 @@ class AlbumItem {
     required this.sortOrder,
     this.title,
     this.postType,
-    this.fileUrl,           // ADD
+    this.fileUrl,
   });
 
   factory AlbumItem.fromJson(Map<String, dynamic> json) {
@@ -76,7 +85,7 @@ class AlbumItem {
       sortOrder: json['sort_order'] ?? 0,
       title: json['trackable']?['title'],
       postType: json['trackable']?['post_type'],
-      fileUrl: json['trackable']?['file_url'],  // ADD
+      fileUrl: json['trackable']?['file_url'],
     );
   }
 }

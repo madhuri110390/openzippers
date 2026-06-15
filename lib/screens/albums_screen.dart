@@ -96,14 +96,7 @@ class _AlbumPlayerScreenState extends State<_AlbumPlayerScreen> {
         fit: StackFit.expand,
         children: [
           // Background cover
-          if ((track['albumCover'] ?? '').isNotEmpty)
-            Image.network(
-              track['albumCover']!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
-            )
-          else
-            Container(color: Colors.grey[900]),
+          Container(color: const Color(0xff08142D)),
 
           // Blur overlay
           BackdropFilter(
@@ -154,6 +147,7 @@ class _AlbumPlayerScreenState extends State<_AlbumPlayerScreen> {
                       coverPath: track['albumCover'] ?? '',
                       autoPlay: true,
                       showEnlargeButton: false,
+                      showInfoButton: false,
                       onFinished: hasNext ? _next : null,
                     ),
                   ),
@@ -211,6 +205,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
       'title': item.title ?? 'Track',
       'filePath': item.fileUrl ?? '',
       'coverPath': album.coverImage ?? '',
+      'albumCover': album.coverImage ?? '',  // ADD THIS
       'postType': item.postType ?? 'audio',
     }).toList();
 
@@ -303,38 +298,59 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                             spacing: 10,
                             runSpacing: 8,
                             children: [
-        ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xffFF3B9D),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        ),
-        onPressed: () {
-        Navigator.pop(context);
-        _playAlbum(context, album);
-        },
-        icon: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
-        label: const Text("Play Album", style: TextStyle(color: Colors.white)),
-        ),
-                              OutlinedButton.icon(
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.white30),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 10,
-                                  ),
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xffFF3B9D),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                 ),
                                 onPressed: () {
                                   Navigator.pop(context);
-                                  _showEditAlbumDialog(context, album);
+                                  _playAlbum(context, album);
                                 },
-                                icon: const Icon(
-                                  Icons.edit_outlined,
-                                  color: Colors.white70,
-                                  size: 16,
+                                icon: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
+                                label: const Text("Play Album", style: TextStyle(color: Colors.white)),
+                              ),
+                              // Show Buy Album only if not owner and album has price
+                              if (album.isOwner != true && (album.price ?? 0) > 0 && album.isPurchased != true)
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xff2ECC71),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  ),
+                                  onPressed: () async {
+                                    Navigator.pop(context);
+                                    try {
+                                      await ref.read(albumViewModelProvider.notifier).purchaseAlbum(album.id);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Album purchased!')),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(content: Text('Purchase failed: $e')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 18),
+                                  label: const Text("Buy Album", style: TextStyle(color: Colors.white)),
                                 ),
-                                label: const Text(
-                                  "Edit Album",
-                                  style: TextStyle(color: Colors.white70),
+                              // Show Edit only if owner
+                              Visibility(
+                                visible: false,
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: Colors.white30),
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                                  ),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _showEditAlbumDialog(context, album);
+                                  },
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 16),
+                                  label: const Text("Edit Album", style: TextStyle(color: Colors.white70)),
                                 ),
                               ),
                             ],
@@ -1352,32 +1368,81 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70),
               ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xffFF3B9D),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
-                ),
-                onPressed: () {},
-                child: const Text(
-                  "Browse Albums",
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
             ],
           ),
         ),
       );
     }
     return ListView.builder(
+      padding: const EdgeInsets.all(16),
       itemCount: purchasedAlbums.length,
       itemBuilder: (context, index) {
         final album = purchasedAlbums[index];
-        return ListTile(
-          title: Text(album.title, style: const TextStyle(color: Colors.white)),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: const Color(0xff122340),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: album.coverImage != null
+                    ? Image.network(
+                  album.coverImage!,
+                  width: 70,
+                  height: 70,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 70,
+                    height: 70,
+                    color: const Color(0xff33435F),
+                    child: const Icon(Icons.music_note, color: Colors.white54),
+                  ),
+                )
+                    : Container(
+                  width: 70,
+                  height: 70,
+                  color: const Color(0xff33435F),
+                  child: const Icon(Icons.music_note, color: Colors.white54),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      album.title,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "${album.items.length} tracks",
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.play_circle_outline),
+                color: const Color(0xffFF3B9D),
+                iconSize: 36,
+                onPressed: () => _playAlbum(context, album),
+              ),
+              IconButton(
+                icon: const Icon(Icons.remove_red_eye_outlined),
+                color: Colors.white70,
+                onPressed: () => _showAlbumDetails(context, album),
+              ),
+            ],
+          ),
         );
       },
     );
