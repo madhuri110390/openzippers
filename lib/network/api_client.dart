@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:dio/dio.dart' hide Headers;
 import 'package:retrofit/retrofit.dart';
+import '../models/album_create_response.dart';
+import '../models/album_purchase_response.dart';
 import '../models/album_response.dart';
 import '../models/block_response.dart';
 import '../models/bookmark_response.dart';
@@ -344,4 +346,25 @@ abstract class ApiClient {
     "Accept": "application/json",
   })
   Future<BookmarkResponse> toggleBookmark(@Body() Map<String, dynamic> body);
+  @POST("zippfans/albums")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<AlbumCreateResponse> createAlbum(@Body() Map<String, dynamic> body);
+
+  //delete album
+  @DELETE("zippfans/albums/{id}")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<AlbumCreateResponse> deleteAlbum(@Path("id") int id);
+
+  //edit album
+  @PUT("zippfans/albums/{id}")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<AlbumCreateResponse> updateAlbum(
+      @Path("id") int id,
+      @Body() Map<String, dynamic> body,
+      );
+
+  //purchase album
+  @POST("zippfans/albums/purchase/wallet")
+  @Headers(<String, dynamic>{"Accept": "application/json"})
+  Future<AlbumPurchaseResponse> purchaseAlbum(@Body() Map<String, dynamic> body);
 }

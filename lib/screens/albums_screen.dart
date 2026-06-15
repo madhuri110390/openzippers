@@ -265,10 +265,15 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                       child: album.coverImage != null
                           ? Image.network(
                         album.coverImage!,
-                        width: 110,
-                        height: 110,
+                        width: 70,
+                        height: 70,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _detailPlaceholder(),
+                        errorBuilder: (_, __, ___) => Container(
+                          width: 70,
+                          height: 70,
+                          color: const Color(0xff33435F),
+                          child: const Icon(Icons.music_note, color: Colors.white54),
+                        ),
                       )
                           : _detailPlaceholder(),
                     ),
@@ -298,28 +303,18 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                             spacing: 10,
                             runSpacing: 8,
                             children: [
-                              ElevatedButton.icon(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xffFF3B9D),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 10,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  Navigator.pop(context);
-                                  _playAlbum(context, album);
-                                },
-                                icon: const Icon(
-                                  Icons.play_arrow,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                label: const Text(
-                                  "Play Album",
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                              ),
+        ElevatedButton.icon(
+        style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xffFF3B9D),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        ),
+        onPressed: () {
+        Navigator.pop(context);
+        _playAlbum(context, album);
+        },
+        icon: const Icon(Icons.play_arrow, color: Colors.white, size: 18),
+        label: const Text("Play Album", style: TextStyle(color: Colors.white)),
+        ),
                               OutlinedButton.icon(
                                 style: OutlinedButton.styleFrom(
                                   side: const BorderSide(color: Colors.white30),
@@ -511,7 +506,27 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
 
   void _showEditAlbumDialog(BuildContext context, Album album) {
     final titleController = TextEditingController(text: album.title);
+    final priceController = TextEditingController(text: album.price?.toStringAsFixed(2) ?? '0.00');
     bool isPublic = album.isPublic ?? false;
+
+    final List<Map<String, dynamic>> editSongs = album.items
+        .where((i) => i.postType == 'audio')
+        .map((i) => {
+      'id': i.trackableId,
+      'title': i.title ?? 'Unknown',
+      'selected': true,
+      'type': 'song',
+    })
+        .toList();
+    final List<Map<String, dynamic>> editVideos = album.items
+        .where((i) => i.postType == 'video')
+        .map((i) => {
+      'id': i.trackableId,
+      'title': i.title ?? 'Unknown',
+      'selected': true,
+      'type': 'post',
+    })
+        .toList();
 
     showDialog(
       context: context,
@@ -583,11 +598,17 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                                   borderRadius: BorderRadius.circular(12),
                                   child: album.coverImage != null
                                       ? Image.network(
-                                          album.coverImage!,
-                                          width: 130,
-                                          height: 130,
-                                          fit: BoxFit.cover,
-                                        )
+                                    album.coverImage!,
+                                    width: 70,
+                                    height: 70,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => Container(
+                                      width: 70,
+                                      height: 70,
+                                      color: const Color(0xff33435F),
+                                      child: const Icon(Icons.music_note, color: Colors.white54),
+                                    ),
+                                  )
                                       : Container(
                                           width: 130,
                                           height: 130,
@@ -623,6 +644,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                           ),
                           const SizedBox(height: 10),
                           TextField(
+                            controller: priceController,
                             keyboardType: TextInputType.number,
                             style: const TextStyle(color: Colors.white),
                             decoration: InputDecoration(
@@ -659,37 +681,106 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                               style: const TextStyle(color: Colors.white54),
                             ),
                             const SizedBox(height: 20),
-                            Builder(builder: (context) {
-                              final songs = album.items
-                                  .where((i) => i.postType == 'audio')
-                                  .toList();
-                              final videos = album.items
-                                  .where((i) => i.postType == 'video')
-                                  .toList();
-
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (songs.isNotEmpty) ...[
-                                    Text(
-                                      "🎵 Songs (${songs.length})",
-                                      style: const TextStyle(color: Colors.white),
+                        Builder(builder: (context) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (editSongs.isNotEmpty) ...[
+                                Text("🎵 Songs (${editSongs.length})",
+                                    style: const TextStyle(color: Colors.white)),
+                                const SizedBox(height: 10),
+                                ...List.generate(editSongs.length, (i) {
+                                  final item = editSongs[i];
+                                  return InkWell(
+                                    onTap: () => setDialogState(
+                                            () => editSongs[i]['selected'] = !editSongs[i]['selected']),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: item['selected']
+                                            ? const Color(0xff1E3A5F)
+                                            : const Color(0xff33435F),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: item['selected']
+                                            ? Border.all(color: const Color(0xffFF3B9D), width: 1.5)
+                                            : null,
+                                      ),
+                                      child: Row(children: [
+                                        IgnorePointer(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: Checkbox(
+                                              value: item['selected'],
+                                              activeColor: const Color(0xffFF3B9D),
+                                              onChanged: (_) {},
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(item['title'],
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                        ),
+                                      ]),
                                     ),
-                                    const SizedBox(height: 10),
-                                    ...songs.map((i) => _mediaTile(i.title ?? "Unknown")),
-                                    const SizedBox(height: 20),
-                                  ],
-                                  if (videos.isNotEmpty) ...[
-                                    Text(
-                                      "🎥 Videos (${videos.length})",
-                                      style: const TextStyle(color: Colors.white),
+                                  );
+                                }),
+                                const SizedBox(height: 20),
+                              ],
+                              if (editVideos.isNotEmpty) ...[
+                                Text("🎥 Videos (${editVideos.length})",
+                                    style: const TextStyle(color: Colors.white)),
+                                const SizedBox(height: 10),
+                                ...List.generate(editVideos.length, (i) {
+                                  final item = editVideos[i];
+                                  return InkWell(
+                                    onTap: () => setDialogState(
+                                            () => editVideos[i]['selected'] = !editVideos[i]['selected']),
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Container(
+                                      margin: const EdgeInsets.only(bottom: 10),
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: item['selected']
+                                            ? const Color(0xff1E3A5F)
+                                            : const Color(0xff33435F),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: item['selected']
+                                            ? Border.all(color: const Color(0xffFF3B9D), width: 1.5)
+                                            : null,
+                                      ),
+                                      child: Row(children: [
+                                        IgnorePointer(
+                                          child: SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: Checkbox(
+                                              value: item['selected'],
+                                              activeColor: const Color(0xffFF3B9D),
+                                              onChanged: (_) {},
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Text(item['title'],
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(color: Colors.white, fontSize: 13)),
+                                        ),
+                                      ]),
                                     ),
-                                    const SizedBox(height: 10),
-                                    ...videos.map((i) => _mediaTile(i.title ?? "Unknown")),
-                                  ],
-                                ],
-                              );
-                            }),
+                                  );
+                                }),
+                              ],
+                            ],
+                          );
+                        }),
                           ],
                         ),
                       ),
@@ -706,15 +797,51 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                           ),
                           const SizedBox(width: 10),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xffFF3B9D),
-                            ),
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text(
-                              "Update Album",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
+            style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xffFF3B9D),
+            ),
+                            onPressed: () async {
+                              debugPrint('UPDATE TAPPED');
+                              final media = [
+                                ...editSongs.where((s) => s['selected']).map((s) => {
+                                  'type': 'song',
+                                  'id': s['id'],
+                                }),
+                                ...editVideos.where((v) => v['selected']).map((v) => {
+                                  'type': 'video',
+                                  'id': v['id'],
+                                }),
+                              ];
+                              debugPrint('CALLING UPDATE API...');
+                              try {
+                                await ref.read(albumViewModelProvider.notifier).updateAlbum(
+                                  id: album.id,
+                                  title: titleController.text.trim(),
+                                  isPublic: isPublic,
+                                  price: double.tryParse(priceController.text) ?? 0.0,
+                                  media: media,
+                                );
+                                debugPrint('UPDATE SUCCESS');
+                                if (context.mounted) Navigator.pop(context);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Album updated!')),
+                                  );
+                                }
+                              } catch (e) {
+                                debugPrint('UPDATE ERROR: $e');
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Failed: $e')),
+                                  );
+                                }
+                              }
+                            },
+            child: const Text(
+            "Update Album",
+            style: TextStyle(color: Colors.white),
+            ),
+            ),
                         ],
                       ),
                     ],
@@ -806,13 +933,24 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                         ),
-                        onPressed: () {
-                          ref
-                              .read(albumViewModelProvider.notifier)
-                              .deleteLocalAlbums(album.id);
+                        onPressed: () async {
                           Navigator.pop(context);
+                          try {
+                            await ref.read(albumViewModelProvider.notifier).deleteAlbum(album.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Album deleted')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed: $e')),
+                              );
+                            }
+                          }
                         },
-                        child: const Text("Delete Album"),
+                        child: const Text("Delete Album", style: TextStyle(color: Colors.white)),
                       ),
                     ),
                   ],
