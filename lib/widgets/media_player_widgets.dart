@@ -394,7 +394,7 @@ class _VideoPlayerWidgetState extends State<VideoPlayerWidget> {
         // Timeout protection: If init takes > 4s, abort to free up queue
         try {
           await controller.initialize().timeout(
-            const Duration(seconds: 4),
+            const Duration(seconds: 30),
           );
         } catch (e) {
           debugPrint("VIDEO INIT ERROR: $e");

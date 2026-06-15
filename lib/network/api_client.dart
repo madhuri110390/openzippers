@@ -290,7 +290,7 @@ abstract class ApiClient {
   // Future<PostCheckoutResponse> createPostCheckout(
   //     @Body() Map<String, dynamic> body,);
 
-
+//public album
   @GET("zippfans/albums")
   @Headers(<String, dynamic>{"Accept": "application/json"})
   Future<AlbumsResponse> getAlbums();

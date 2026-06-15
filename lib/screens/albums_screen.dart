@@ -1,8 +1,12 @@
+import 'dart:ui';
+
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/album_model.dart';
 import '../models/album_response.dart';
 import '../viewmodels/album_viewmodel.dart';
+import '../widgets/media_player_widgets.dart';
 import 'create_edit_album_dialog.dart';
 
 class AlbumsScreen extends ConsumerStatefulWidget {
@@ -11,7 +15,183 @@ class AlbumsScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<AlbumsScreen> createState() => _AlbumsScreenState();
 }
+class _AlbumPlayerScreen extends StatefulWidget {
+  final List<Map<String, dynamic>> tracks;
+  const _AlbumPlayerScreen({required this.tracks});
 
+  @override
+  State<_AlbumPlayerScreen> createState() => _AlbumPlayerScreenState();
+}
+
+class _AlbumPlayerScreenState extends State<_AlbumPlayerScreen> {
+  int _currentIndex = 0;
+  AudioPlayer? _audioPlayer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTrack(0);
+  }
+
+  @override
+  void dispose() {
+    _audioPlayer?.dispose();
+    super.dispose();
+  }
+
+  void _startTrack(int index) {
+    if (index < 0 || index >= widget.tracks.length) return;
+    final track = widget.tracks[index];
+    if (track['postType'] == 'video') {
+      _audioPlayer?.stop();
+    }
+    setState(() => _currentIndex = index);
+  }
+
+  void _next() => _startTrack(_currentIndex + 1);
+  void _prev() => _startTrack(_currentIndex - 1);
+
+  @override
+  Widget build(BuildContext context) {
+    final track = widget.tracks[_currentIndex];
+    final isVideo = track['postType'] == 'video';
+    final filePath = track['filePath'] ?? '';
+    final coverPath = track['coverPath'] ?? '';
+    final hasNext = _currentIndex < widget.tracks.length - 1;
+    final hasPrev = _currentIndex > 0;
+    debugPrint('TRACK filePath: $filePath, postType: ${track['postType']}');
+// Replace this in _AlbumPlayerScreen.build
+    if (isVideo) {
+      return FullScreenVideoPlayer(
+        key: ValueKey('video_$_currentIndex'),
+        tracks: widget.tracks
+            .asMap()
+            .entries
+            .where((e) => e.value['postType'] == 'video')
+            .map((e) => {
+          ...e.value,
+          'coverPath': e.value['coverPath'], // shows while video loads
+        })
+            .toList(),
+        initialIndex: 0,
+        onTrackChanged: (i) {
+          final videoTracks = widget.tracks
+              .asMap()
+              .entries
+              .where((e) => e.value['postType'] == 'video')
+              .toList();
+          if (i < videoTracks.length) {
+            _startTrack(videoTracks[i].key);
+          }
+        },
+      );
+    }
+
+    // Audio track
+    _audioPlayer ??= AudioPlayer();
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Background cover
+          if ((track['albumCover'] ?? '').isNotEmpty)
+            Image.network(
+              track['albumCover']!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
+            )
+          else
+            Container(color: Colors.grey[900]),
+
+          // Blur overlay
+          BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: Container(color: Colors.black.withOpacity(0.5)),
+          ),
+
+          SafeArea(
+            child: Column(
+              children: [
+                // Top bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      Expanded(
+                        child: Text(
+                          track['title'] ?? 'Track',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${_currentIndex + 1}/${widget.tracks.length}',
+                        style: const TextStyle(color: Colors.white54, fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Audio player
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: AudioPlayerWidget(
+                      key: ValueKey('audio_$_currentIndex'),
+                      audioPath: filePath,
+                      coverPath: track['albumCover'] ?? '',
+                      autoPlay: true,
+                      showEnlargeButton: false,
+                      onFinished: hasNext ? _next : null,
+                    ),
+                  ),
+                ),
+
+                // Prev / Next controls
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 40),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.skip_previous_rounded,
+                          color: hasPrev ? Colors.white : Colors.white30,
+                          size: 48,
+                        ),
+                        onPressed: hasPrev ? _prev : null,
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          Icons.skip_next_rounded,
+                          color: hasNext ? Colors.white : Colors.white30,
+                          size: 48,
+                        ),
+                        onPressed: hasNext ? _next : null,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
@@ -24,166 +204,270 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
       ref.read(albumViewModelProvider.notifier).loadAlbums();
     });
   }
+  void _playAlbum(BuildContext context, Album album) {
+    if (album.items.isEmpty) return;
 
+    final tracks = album.items.map((item) => {
+      'title': item.title ?? 'Track',
+      'filePath': item.fileUrl ?? '',
+      'coverPath': album.coverImage ?? '',
+      'postType': item.postType ?? 'audio',
+    }).toList();
+
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _AlbumPlayerScreen(tracks: tracks),
+    ));
+  }
   // ✅ REMOVED deleteLocalAlbums from here — it belongs only in AlbumViewModel
-
   void _showAlbumDetails(BuildContext context, Album album) {
     showDialog(
       context: context,
       builder: (context) {
         return Dialog(
           backgroundColor: const Color(0xff1A2742),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: SingleChildScrollView(
-            child: Container(
-              width: MediaQuery.of(context).size.width * .9,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        "Album Details",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          child: Container(
+            width: MediaQuery.of(context).size.width * .95,
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * .85,
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    const Text(
+                      "Album Details",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      const Spacer(),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close, color: Colors.white70),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                    ),
+                  ],
+                ),
+                const Divider(color: Colors.white12),
+                const SizedBox(height: 12),
+
+                // Cover + title + buttons row
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: album.coverImage != null
+                          ? Image.network(
+                        album.coverImage!,
+                        width: 110,
+                        height: 110,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _detailPlaceholder(),
+                      )
+                          : _detailPlaceholder(),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            album.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "${album.items.length} tracks",
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            children: [
+                              ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xffFF3B9D),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _playAlbum(context, album);
+                                },
+                                icon: const Icon(
+                                  Icons.play_arrow,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                label: const Text(
+                                  "Play Album",
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Colors.white30),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 10,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  _showEditAlbumDialog(context, album);
+                                },
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.white70,
+                                  size: 16,
+                                ),
+                                label: const Text(
+                                  "Edit Album",
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 20),
+
+                // Tracks header
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Tracks",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  const Divider(color: Colors.white12),
-                  const SizedBox(height: 10),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isMobile = constraints.maxWidth < 500;
-                      return isMobile
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Center(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: album.coverImage != null
-                                        ? Image.network(
-                                            album.coverImage!,
-                                            width: 140,
-                                            height: 140,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : Container(
-                                            width: 140,
-                                            height: 140,
-                                            color: const Color(0xff33435F),
-                                            child: const Icon(
-                                              Icons.music_note,
-                                              color: Colors.white54,
-                                              size: 50,
-                                            ),
-                                          ),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  album.title,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  album.isPublic == true ? "Public" : "Private",
-                                  style: const TextStyle(color: Colors.white60),
-                                ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xffFF3B9D),
-                                    ),
-                                    onPressed: () {},
-                                    icon: const Icon(
-                                      Icons.play_arrow,
+                ),
+                const SizedBox(height: 10),
+
+                // Tracks list
+                Flexible(
+                  child: album.items.isEmpty
+                      ? const Center(
+                    child: Text(
+                      "No tracks",
+                      style: TextStyle(color: Colors.white54),
+                    ),
+                  )
+                      : ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: album.items.length,
+                    separatorBuilder: (_, __) =>
+                    const SizedBox(height: 8),
+                    itemBuilder: (context, i) {
+                      final item = album.items[i];
+                      final isVideo = item.trackableType
+                          .toLowerCase()
+                          .contains('post'); // adjust if needed
+                      // Try to get title from trackable if model has it
+                      final title = item.title ?? "Track ${i + 1}";
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xff243550),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              "${i + 1}",
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
                                       color: Colors.white,
-                                    ),
-                                    label: const Text(
-                                      "Play Album",
-                                      style: TextStyle(color: Colors.white),
+                                      fontSize: 14,
                                     ),
                                   ),
-                                ),
-                              ],
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Center(
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: album.coverImage != null
-                                        ? Image.network(
-                                            album.coverImage!,
-                                            width: 140,
-                                            height: 140,
-                                            fit: BoxFit.cover,
-                                          )
-                                        : Container(
-                                            width: 140,
-                                            height: 140,
-                                            color: const Color(0xff33435F),
-                                            child: const Icon(
-                                              Icons.music_note,
-                                              color: Colors.white54,
-                                              size: 50,
-                                            ),
-                                          ),
+                                  const Text(
+                                    "0:00",
+                                    style: TextStyle(
+                                      color: Colors.white54,
+                                      fontSize: 11,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            );
+                                ],
+                              ),
+                            ),
+                            Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: item.postType == 'video'
+                                    ? const Color(0xffFF3B9D)
+                                    : const Color(0xff2ECC71),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                item.postType == 'video'
+                                    ? Icons.videocam
+                                    : Icons.music_note,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
                     },
                   ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white10),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Tracks",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _trackTile(1, "Unknown Track"),
-                        const SizedBox(height: 8),
-                        _trackTile(2, "Unknown Track"),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _detailPlaceholder() {
+    return Container(
+      width: 110,
+      height: 110,
+      decoration: BoxDecoration(
+        color: const Color(0xff33435F),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Icon(Icons.music_note, color: Colors.white54, size: 40),
     );
   }
 
@@ -370,27 +654,42 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                               ),
                             ),
                             const SizedBox(height: 6),
-                            const Text(
-                              "Add 6 to 15 tracks — 0 / 15 tracks",
-                              style: TextStyle(color: Colors.white54),
+                             Text(
+                              "Add 6 to 15 tracks — ${album.items.length} / 15 tracks",
+                              style: const TextStyle(color: Colors.white54),
                             ),
                             const SizedBox(height: 20),
-                            const Text(
-                              "🎵 Songs (2)",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            const SizedBox(height: 10),
-                            _mediaTile("Travis Scott Type Beat"),
-                            _mediaTile("Shawn Mendes – Treat You Better"),
-                            const SizedBox(height: 20),
-                            const Text(
-                              "🎥 Videos (3)",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            const SizedBox(height: 10),
-                            _mediaTile("Rolling Loud 2021 Kanye West"),
-                            _mediaTile("Zayn singing Night Changes"),
-                            _mediaTile("test"),
+                            Builder(builder: (context) {
+                              final songs = album.items
+                                  .where((i) => i.postType == 'audio')
+                                  .toList();
+                              final videos = album.items
+                                  .where((i) => i.postType == 'video')
+                                  .toList();
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (songs.isNotEmpty) ...[
+                                    Text(
+                                      "🎵 Songs (${songs.length})",
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ...songs.map((i) => _mediaTile(i.title ?? "Unknown")),
+                                    const SizedBox(height: 20),
+                                  ],
+                                  if (videos.isNotEmpty) ...[
+                                    Text(
+                                      "🎥 Videos (${videos.length})",
+                                      style: const TextStyle(color: Colors.white),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ...videos.map((i) => _mediaTile(i.title ?? "Unknown")),
+                                  ],
+                                ],
+                              );
+                            }),
                           ],
                         ),
                       ),
@@ -681,7 +980,7 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
                       ),
                       child: Center(
                         child: Text(
-                          "${album.id}",
+                          "${album.items.length}",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -742,15 +1041,149 @@ class _AlbumsScreenState extends ConsumerState<AlbumsScreen>
         child: Text("No Public Albums", style: TextStyle(color: Colors.white)),
       );
     }
-    return ListView.builder(
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 0.72,
+      ),
       itemCount: albums.length,
       itemBuilder: (context, index) {
         final album = albums[index];
-        return ListTile(
-          title: Text(album.title, style: const TextStyle(color: Colors.white)),
+        final isFree = album.price == null || album.price == 0.0;
+        final trackCount = album.items.length;
+        final imageUrl = album.coverImage; // already fixed by _fixImageUrl in model
+
+        return GestureDetector(
+          onTap: () => _showAlbumDetails(context, album),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xff122340),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(14),
+                      ),
+                      child: imageUrl != null
+                          ? Image.network(
+                        imageUrl,
+                        width: double.infinity,
+                        height: 160,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _placeholderCover(),
+                      )
+                          : _placeholderCover(),
+                    ),
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isFree
+                              ? const Color(0xff2ECC71)
+                              : const Color(0xffFF3B9D),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          isFree ? "free" : "₹${album.price}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (trackCount > 0)
+                      Positioned(
+                        bottom: 8,
+                        left: 8,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            "$trackCount tracks",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 6),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        album.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (album.userName != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          album.userName!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
+  }
+
+  Widget _placeholderCover() {
+    return Container(
+      width: double.infinity,
+      height: 160,
+      color: const Color(0xff33435F),
+      child: const Icon(Icons.music_note, color: Colors.white54, size: 40),
+    );
+  }
+  static String? _fixImageUrl(String? url) {
+    if (url == null) return null;
+    const base = 'https://dev-openzippers.s3.us-east-1.amazonaws.com/';
+    if (url.contains(base + 'https://')) {
+      return url.replaceFirst(base, '');
+    }
+    return url;
   }
 
   Widget _purchasesTab(List<Album> purchasedAlbums) {
