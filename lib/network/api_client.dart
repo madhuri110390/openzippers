@@ -10,6 +10,7 @@ import '../models/cart_response.dart';
 import '../models/cart_toggle_response.dart';
 import '../models/remove_cart_response.dart';
 import '../models/report_response.dart';
+import '../models/subscriptions_list_response.dart';
 import '../models/wallet_history_response.dart';
 import '../models/wallet_payment_response.dart';
 import '../models/comment_response.dart';
@@ -375,4 +376,12 @@ abstract class ApiClient {
     "Accept": "application/json",
   })
   Future<ReportResponse> reportPost(@Body() Map<String, dynamic> body);
+
+  //GET subscriptions
+
+  @GET("settings/subscriptions")
+  @Headers(<String, dynamic>{
+    "Accept": "application/json",
+  })
+  Future<SubscriptionListResponse> getSubscriptionList();
 }

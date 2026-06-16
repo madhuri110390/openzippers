@@ -1,222 +1,56 @@
-import 'package:dio/dio.dart';
+// screens/subscriptions_page.dart
+
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../helpers/translations.dart';
 import '../models/mock_data.dart';
-import '../helpers/database_helper.dart';
-import '../network/api_client.dart';
-import '../repositories/subscription_repository.dart';
+import '../models/subscriptions_list_response.dart';
+import '../providers/subscriptions_list_provider.dart';
+import '../viewmodels/subscription_list_viewmodel.dart';
 
-class SubscriptionsPage extends StatefulWidget {
+class SubscriptionsPage extends ConsumerStatefulWidget {
   final MockUser currentUser;
   final String? highlightUser;
-  const SubscriptionsPage({super.key, required this.currentUser, this.highlightUser});
+
+  const SubscriptionsPage({
+    super.key,
+    required this.currentUser,
+    this.highlightUser,
+  });
 
   @override
-  State<SubscriptionsPage> createState() => _SubscriptionsPageState();
+  ConsumerState<SubscriptionsPage> createState() =>
+      _SubscriptionsPageState();
 }
 
-class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTickerProviderStateMixin {
+class _SubscriptionsPageState extends ConsumerState<SubscriptionsPage>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late final ApiClient _apiClient;
-  late final SubscriptionRepository
-  _subscriptionRepository;
-  bool _isLoading = false;
-  final DatabaseHelper _dbHelper = DatabaseHelper();
-  List<Map<String, dynamic>> _subscriptions = [];
-  List<Map<String, dynamic>> _subscribers = [];
-  String apiAmount = '';
-  String apiStatus = '';
-  String apiExpiresAt = '';
+
   @override
   void initState() {
     super.initState();
-
-    _tabController =
-        TabController(length: 2, vsync: this);
-
+    _tabController = TabController(length: 2, vsync: this);
     if (widget.highlightUser != null) {
       _tabController.index = 1;
     }
+    _tabController.addListener(() => setState(() {}));
 
-    _initialize();
+    // Trigger fetch on open
+    Future.microtask(() =>
+        ref.read(subscriptionListProvider.notifier).fetchSubscriptions());
   }
-  Future<void> _initialize() async {
 
-    final prefs =
-    await SharedPreferences.getInstance();
-
-    final token =
-    prefs.getString("auth_token");
-
-    debugPrint("TOKEN = $token");
-
-    final dio = Dio();
-
-    dio.options.headers = {
-      "Accept": "application/json",
-      "Authorization": "Bearer $token",
-    };
-
-    dio.interceptors.add(
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        requestHeader: true,
-        responseHeader: true,
-      ),
-    );
-
-    _apiClient = ApiClient(dio);
-
-    _subscriptionRepository =
-        SubscriptionRepository(
-          _apiClient,
-        );
-
-    await _loadData();
-  }
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-
-    debugPrint("LOAD DATA STARTED");
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-
-      debugPrint(
-        "USERNAME = ${widget.currentUser.username}",
-      );
-
-      final userResponse =
-      await _apiClient.getUserByUsername(
-        username:
-        widget.currentUser.username,
-      );
-
-      debugPrint(
-        "USER API SUCCESS",
-      );
-
-      final int artistId =
-          userResponse.data?.user.id ?? 0;
-
-      debugPrint(
-        "ARTIST ID = $artistId",
-      );
-
-      final subscriptionResponse =
-      await _subscriptionRepository
-          .getSubscriptionStatus(
-        artistId,
-      );
-
-      debugPrint(
-        "SUBSCRIPTION API SUCCESS",
-      );
-
-      apiAmount =
-          subscriptionResponse
-              .data
-              .subscription
-              ?.amount ??
-              '';
-
-      apiStatus =
-          subscriptionResponse
-              .data
-              .subscription
-              ?.status ??
-              '';
-
-      apiExpiresAt =
-          subscriptionResponse
-              .data
-              .subscription
-              ?.expiresAt ??
-              '';
-
-      debugPrint(
-        "STATUS = $apiStatus",
-      );
-
-      final relationships =
-      await _dbHelper.getRelationships(
-        widget.currentUser.username,
-      );
-
-      final List<Map<String, dynamic>> subs = [];
-      final List<Map<String, dynamic>> fans = [];
-
-      relationships.forEach((username, type) {
-        if (type == 'subscribed') {
-          subs.add({
-            'type': 'Artist',
-            'user': '@$username',
-            'amount': apiAmount.isNotEmpty
-                ? apiAmount
-                : '\$0.00',
-            'status': apiStatus.isNotEmpty
-                ? apiStatus
-                : 'Inactive',
-            'provider': 'Stripe',
-            'nextBilling': apiExpiresAt,
-            'created': 'Recent',
-          });
-        } else if (type == 'subscriber') {
-          fans.add({
-            'type': 'Fan',
-            'user': '@$username',
-            'amount': apiAmount.isNotEmpty
-                ? apiAmount
-                : '\$0.00',
-            'status': apiStatus.isNotEmpty
-                ? apiStatus
-                : 'Inactive',
-            'provider': 'Stripe',
-            'nextBilling': apiExpiresAt,
-            'created': 'Recent',
-          });
-        }
-      });
-
-      if (mounted) {
-        setState(() {
-          _subscriptions = subs;
-          _subscribers = fans;
-          _isLoading = false;
-        });
-      }
-
-    } catch (e) {
-
-      debugPrint(
-        "API ERROR = $e",
-      );
-    }
-
-
-  }
-
-  Future<void> _refreshData() async {
-    await _loadData();
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    // Use _subscriptions and _subscribers loaded from DB
-    final subscriptions = _subscriptions;
-    final subscribers = _subscribers;
+    final state = ref.watch(subscriptionListProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -235,285 +69,146 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: CustomScrollView(
-        slivers: [
-          // Stats Section
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.all(20),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        context.tr.subscriptions,
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: theme.textTheme.titleMedium?.color,
-                        ),
-                      ),
-                      _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Color(0xFFDB2777),
-                                ),
-                              ),
-                            )
-                          : IconButton(
-                              icon: const Icon(
-                                Icons.refresh,
-                                size: 20,
-                                color: Color(0xFFDB2777),
-                              ),
-                              onPressed: _refreshData,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                            ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Total Earnings
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        context.tr.totalEarnings,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: theme.hintColor,
-                        ),
-                      ),
-                      const Text(
-                        '\$0.00',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFFDB2777),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Stats in Column
-                  Column(
-                    children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.light
-                              ? const Color(0xFFF8F9FA)
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.tr.activeSubscribers,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: theme.hintColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${subscribers.length}',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: theme.textTheme.titleLarge?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.light
-                              ? const Color(0xFFF8F9FA)
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.tr.yourSubscriptions,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: theme.hintColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${subscriptions.length}',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: theme.textTheme.titleLarge?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: theme.brightness == Brightness.light
-                              ? const Color(0xFFF8F9FA)
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              context.tr.totalSubscriptions,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: theme.hintColor,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '${subscriptions.length + subscribers.length}',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: theme.textTheme.titleLarge?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+      body: state.isLoading && !state.hasData
+          ? const Center(
+        child: CircularProgressIndicator(
+          color: Color(0xFFDB2777),
+        ),
+      )
+          : state.hasError && !state.hasData
+          ? _buildError(theme, state)
+          : _buildBody(theme, state),
+    );
+  }
 
-          // Tabs
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                onTap: (index) {
-                  setState(() {});
-                },
-                labelColor: Colors.white,
-                unselectedLabelColor: theme.textTheme.bodyMedium?.color,
-                indicator: BoxDecoration(
-                  color: const Color(0xFFDB2777),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                tabs: [
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.subscriptions, size: 18),
-                        const SizedBox(width: 8),
-                        Text(context.tr.subscriptions),
-                      ],
-                    ),
-                  ),
-                  Tab(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.people, size: 18),
-                        const SizedBox(width: 8),
-                        Text(context.tr.subscribers),
-                      ],
-                    ),
-                  ),
-                ],
+  Widget _buildError(ThemeData theme, SubscriptionListState state) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline,
+                size: 56, color: theme.hintColor.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load subscriptions',
+              style: TextStyle(
+                  fontSize: 16, color: theme.textTheme.bodyLarge?.color),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.errorMessage ?? '',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: theme.hintColor),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => ref
+                  .read(subscriptionListProvider.notifier)
+                  .refresh(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFDB2777),
+                foregroundColor: Colors.white,
               ),
             ),
-          ),
-          
-          const SliverToBoxAdapter(child: SizedBox(height: 10)),
-          
-          // Tab Content
-          ...(_tabController.index == 0
-              ? _buildSubscriptionSlivers(theme, subscriptions)
-              : _buildSubscriberSlivers(theme, subscribers)),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  List<Widget> _buildSubscriptionSlivers(ThemeData theme, List<Map<String, dynamic>> subscriptions) {
-    if (subscriptions.isEmpty) {
+  Widget _buildBody(ThemeData theme, SubscriptionListState state) {
+    final subscriptions = state.asSubscriber; // plans I'm on
+    final subscribers = state.asArtist;       // fans subscribed to me
+
+    return CustomScrollView(
+      slivers: [
+        // ── Stats card ──────────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: _StatsCard(
+            state: state,
+            subscriptionsCount: subscriptions.length,
+            subscribersCount: subscribers.length,
+            isLoading: state.isLoading,
+            onRefresh: () => ref
+                .read(subscriptionListProvider.notifier)
+                .refresh(),
+          ),
+        ),
+
+        // ── Tab bar ─────────────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20),
+            decoration: BoxDecoration(
+              color: theme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: theme.dividerColor),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              onTap: (_) => setState(() {}),
+              labelColor: Colors.white,
+              unselectedLabelColor: theme.textTheme.bodyMedium?.color,
+              indicator: BoxDecoration(
+                color: const Color(0xFFDB2777),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              tabs: [
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.subscriptions, size: 18),
+                      const SizedBox(width: 8),
+                      Text(context.tr.subscriptions),
+                    ],
+                  ),
+                ),
+                Tab(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.people, size: 18),
+                      const SizedBox(width: 8),
+                      Text(context.tr.subscribers),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+        // ── Tab content ─────────────────────────────────────────────────
+        if (_tabController.index == 0)
+          ..._buildSubscriptionSlivers(theme, subscriptions)
+        else
+          ..._buildSubscriberSlivers(theme, subscribers),
+      ],
+    );
+  }
+
+  // ── MY SUBSCRIPTIONS (plans I pay for) ───────────────────────────────────
+
+  List<Widget> _buildSubscriptionSlivers(
+      ThemeData theme, List<SubscriptionItem> items) {
+    if (items.isEmpty) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
-            child: Container(
-              margin: const EdgeInsets.all(20),
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.receipt_long_outlined,
-                    size: 64,
-                    color: theme.hintColor.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.tr.noSubscriptionsFound,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: theme.textTheme.bodyLarge?.color,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr.subscriptionHistoryDesc,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.hintColor,
-                    ),
-                  ),
-                ],
-              ),
+            child: _EmptyState(
+              icon: Icons.receipt_long_outlined,
+              title: context.tr.noSubscriptionsFound,
+              subtitle: context.tr.subscriptionHistoryDesc,
             ),
           ),
         ),
@@ -522,7 +217,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
 
     return [
       SliverPadding(
-        padding: const EdgeInsets.only(bottom: 10, top: 0),
+        padding: const EdgeInsets.only(bottom: 24),
         sliver: SliverList(
           delegate: SliverChildListDelegate([
             Container(
@@ -546,86 +241,21 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
                       ),
                     ),
                   ),
-                  ...subscriptions.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final sub = entry.value;
-                    return Container(
-                      margin: EdgeInsets.fromLTRB(20, 0, 20, index == subscriptions.length - 1 ? 16 : 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.brightness == Brightness.light
-                            ? const Color(0xFFF8F9FA)
-                            : theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '#${index + 1}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: theme.hintColor,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  sub['status'] == 'Active' ? context.tr.active : sub['status']?.toString() ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-
-
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.subscriptionType, sub['type'] == 'Artist' ? context.tr.artist : sub['type']?.toString() ?? '', theme),
-                          const SizedBox(height: 12),
-                          _buildInfoRow(
-                            context.tr.user,
-                            sub['user']?.toString() ?? '',
-                            theme,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.user, sub['user']?.toString() ?? '', theme),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(
-                            context.tr.amount,
-                            sub['amount']?.toString() ?? '',
-                            theme,
-                            isAmount: true,
-                          ),
-
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.provider, sub['provider'] == 'Stripe' ? context.tr.gatewayStripe : sub['provider']?.toString() ?? '', theme),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(
-                            "Status",
-                            sub['status']?.toString().toUpperCase() ?? '',
-                            theme,
-                          ),
-                          _buildInfoRow(
-                            context.tr.nextBilling,
-                            sub['nextBilling']?.toString().split('T').first ?? '',
-                            theme,
-                          ),
-
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.created, sub['created']?.toString() ?? '', theme),
-                        ],
-                      ),
+                  ...items.asMap().entries.map((e) {
+                    final idx = e.key;
+                    final item = e.value;
+                    return _SubscriptionCard(
+                      index: idx,
+                      item: item,
+                      isLast: idx == items.length - 1,
+                      theme: theme,
+                      // In asSubscriber the API may return artist info
+                      // use artist field if present, else show artistId
+                      displayName: item.artist != null
+                          ? '@${item.artist!.username}'
+                          : 'Artist #${item.artistId}',
+                      avatarUrl: item.artist?.avatarUrl,
+                      role: 'Artist',
                     );
                   }),
                 ],
@@ -637,76 +267,19 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
     ];
   }
 
-  Widget _buildInfoRow(String label, String value, ThemeData theme, {bool isAmount = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            color: theme.hintColor,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            textAlign: TextAlign.right,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: isAmount ? FontWeight.bold : FontWeight.w500,
-              color: isAmount ? const Color(0xFFDB2777) : theme.textTheme.bodyMedium?.color,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  // ── MY SUBSCRIBERS (fans paying me) ──────────────────────────────────────
 
-  List<Widget> _buildSubscriberSlivers(ThemeData theme, List<Map<String, dynamic>> subscribers) {
-    if (subscribers.isEmpty) {
+  List<Widget> _buildSubscriberSlivers(
+      ThemeData theme, List<SubscriptionItem> items) {
+    if (items.isEmpty) {
       return [
         SliverFillRemaining(
           hasScrollBody: false,
           child: Center(
-            child: Container(
-              margin: const EdgeInsets.all(20),
-              padding: const EdgeInsets.all(40),
-              decoration: BoxDecoration(
-                color: theme.cardColor,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: theme.dividerColor),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.people_outline,
-                    size: 64,
-                    color: theme.hintColor.withValues(alpha: 0.5),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    context.tr.noSubscribersFound,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      color: theme.textTheme.bodyLarge?.color,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr.subscriberListDesc,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: theme.hintColor,
-                    ),
-                  ),
-                ],
-              ),
+            child: _EmptyState(
+              icon: Icons.people_outline,
+              title: context.tr.noSubscribersFound,
+              subtitle: context.tr.subscriberListDesc,
             ),
           ),
         ),
@@ -715,7 +288,7 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
 
     return [
       SliverPadding(
-        padding: const EdgeInsets.only(bottom: 20, top: 0),
+        padding: const EdgeInsets.only(bottom: 24),
         sliver: SliverList(
           delegate: SliverChildListDelegate([
             Container(
@@ -739,68 +312,17 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
                       ),
                     ),
                   ),
-                  ...subscribers.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final sub = entry.value;
-                    final isHighlighted = widget.highlightUser != null && sub['user'] == widget.highlightUser;
-
-                    return Container(
-                      margin: EdgeInsets.fromLTRB(20, 0, 20, index == subscribers.length - 1 ? 16 : 12),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: isHighlighted
-                            ? const Color(0xFFDB2777).withValues(alpha: 0.1) // Pink highlight
-                            : (theme.brightness == Brightness.light
-                                ? const Color(0xFFF8F9FA)
-                                : theme.colorScheme.surfaceContainerHighest),
-                        borderRadius: BorderRadius.circular(8),
-                        border: isHighlighted ? Border.all(color: const Color(0xFFDB2777), width: 1.5) : null,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '#${index + 1}',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: isHighlighted ? const Color(0xFFDB2777) : theme.hintColor,
-                                  fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal,
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  sub['status'] == 'Active' ? context.tr.active : sub['status']?.toString() ?? '',
-                                  style: const TextStyle(
-                                    color: Colors.green,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          _buildInfoRow(context.tr.subscriptionType, sub['type']?.toString() ?? '', theme),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.user, sub['user']?.toString() ?? '', theme),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.amount, sub['amount']?.toString() ?? '', theme, isAmount: true),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.provider, sub['provider'] == 'Stripe' ? context.tr.gatewayStripe : sub['provider']?.toString() ?? '', theme),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.nextBilling, sub['nextBilling']?.toString() ?? '', theme),
-                          const SizedBox(height: 8),
-                          _buildInfoRow(context.tr.created, sub['created']?.toString() ?? '', theme),
-                        ],
-                      ),
+                  ...items.asMap().entries.map((e) {
+                    final idx = e.key;
+                    final item = e.value;
+                    final isHighlighted = widget.highlightUser != null &&
+                        item.subscriber?.username == widget.highlightUser;
+                    return _SubscriberCard(
+                      index: idx,
+                      item: item,
+                      isLast: idx == items.length - 1,
+                      isHighlighted: isHighlighted,
+                      theme: theme,
                     );
                   }),
                 ],
@@ -811,6 +333,496 @@ class _SubscriptionsPageState extends State<SubscriptionsPage> with SingleTicker
       ),
     ];
   }
-
 }
 
+// ── Stats Card ────────────────────────────────────────────────────────────
+
+class _StatsCard extends StatelessWidget {
+  final SubscriptionListState state;
+  final int subscriptionsCount;
+  final int subscribersCount;
+  final bool isLoading;
+  final VoidCallback onRefresh;
+
+  const _StatsCard({
+    required this.state,
+    required this.subscriptionsCount,
+    required this.subscribersCount,
+    required this.isLoading,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeCount = state.activeSubscribersCount;
+    final earnings = state.totalEarnings;
+
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // header row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                context.tr.subscriptions,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: theme.textTheme.titleMedium?.color,
+                ),
+              ),
+              isLoading
+                  ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Color(0xFFDB2777)),
+                ),
+              )
+                  : IconButton(
+                icon: const Icon(Icons.refresh,
+                    size: 20, color: Color(0xFFDB2777)),
+                onPressed: onRefresh,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Total earnings
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                context.tr.totalEarnings,
+                style: TextStyle(fontSize: 14, color: theme.hintColor),
+              ),
+              Text(
+                '\$$earnings',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFDB2777),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // 3 stat boxes
+          Column(
+            children: [
+              _StatBox(
+                label: 'Active Subscribers',
+                value: activeCount.toString(),
+                theme: theme,
+                highlight: true,
+              ),
+              const SizedBox(height: 12),
+              _StatBox(
+                label: context.tr.yourSubscriptions,
+                value: subscriptionsCount.toString(),
+                theme: theme,
+              ),
+              const SizedBox(height: 12),
+              _StatBox(
+                label: context.tr.totalSubscriptions,
+                value: (subscriptionsCount + subscribersCount).toString(),
+                theme: theme,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatBox extends StatelessWidget {
+  final String label;
+  final String value;
+  final ThemeData theme;
+  final bool highlight;
+
+  const _StatBox({
+    required this.label,
+    required this.value,
+    required this.theme,
+    this.highlight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: highlight
+            ? const Color(0xFFDB2777).withOpacity(0.08)
+            : (theme.brightness == Brightness.light
+            ? const Color(0xFFF8F9FA)
+            : theme.colorScheme.surfaceContainerHighest),
+        borderRadius: BorderRadius.circular(8),
+        border: highlight
+            ? Border.all(color: const Color(0xFFDB2777).withOpacity(0.3))
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(fontSize: 14, color: theme.hintColor)),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: highlight
+                  ? const Color(0xFFDB2777)
+                  : theme.textTheme.titleLarge?.color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Subscription card (I subscribed to artist) ────────────────────────────
+
+class _SubscriptionCard extends StatelessWidget {
+  final int index;
+  final SubscriptionItem item;
+  final bool isLast;
+  final ThemeData theme;
+  final String displayName;
+  final String? avatarUrl;
+  final String role;
+
+  const _SubscriptionCard({
+    required this.index,
+    required this.item,
+    required this.isLast,
+    required this.theme,
+    required this.displayName,
+    this.avatarUrl,
+    required this.role,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: EdgeInsets.fromLTRB(20, 0, 20, isLast ? 16 : 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.brightness == Brightness.light
+            ? const Color(0xFFF8F9FA)
+            : theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Index + Status badge
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('#${index + 1}',
+                  style: TextStyle(fontSize: 12, color: theme.hintColor)),
+              _StatusBadge(status: item.status),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Avatar + name row
+          if (avatarUrl != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundImage: NetworkImage(avatarUrl!),
+                    backgroundColor: theme.dividerColor,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    displayName,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+
+          _InfoRow('Type', role, theme),
+          const SizedBox(height: 8),
+          _InfoRow('User', displayName, theme),
+          const SizedBox(height: 8),
+          _InfoRow('Amount', '\$${item.amount}', theme, isAmount: true),
+          const SizedBox(height: 8),
+          _InfoRow('Provider', _capitalize(item.provider), theme),
+          const SizedBox(height: 8),
+          _InfoRow('Expires', item.expiresAtFormatted, theme),
+          const SizedBox(height: 8),
+          _InfoRow('Since', item.createdAtFormatted, theme),
+        ],
+      ),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+// ── Subscriber card (fan paying me) ──────────────────────────────────────
+
+class _SubscriberCard extends StatelessWidget {
+  final int index;
+  final SubscriptionItem item;
+  final bool isLast;
+  final bool isHighlighted;
+  final ThemeData theme;
+
+  const _SubscriberCard({
+    required this.index,
+    required this.item,
+    required this.isLast,
+    required this.isHighlighted,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final sub = item.subscriber;
+    final name = sub != null ? sub.name : 'Subscriber #${item.subscriberId}';
+    final username = sub != null ? '@${sub.username}' : '';
+    final avatarUrl = sub?.avatarUrl;
+
+    return Container(
+      margin: EdgeInsets.fromLTRB(20, 0, 20, isLast ? 16 : 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isHighlighted
+            ? const Color(0xFFDB2777).withOpacity(0.1)
+            : (theme.brightness == Brightness.light
+            ? const Color(0xFFF8F9FA)
+            : theme.colorScheme.surfaceContainerHighest),
+        borderRadius: BorderRadius.circular(8),
+        border: isHighlighted
+            ? Border.all(color: const Color(0xFFDB2777), width: 1.5)
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Index + status
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '#${index + 1}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isHighlighted
+                      ? const Color(0xFFDB2777)
+                      : theme.hintColor,
+                  fontWeight:
+                  isHighlighted ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+              _StatusBadge(status: item.status),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Avatar + name
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 22,
+                backgroundColor: theme.dividerColor,
+                backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                    ? NetworkImage(avatarUrl)
+                    : null,
+                child: avatarUrl == null || avatarUrl.isEmpty
+                    ? Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
+                )
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(name,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 14),
+                        overflow: TextOverflow.ellipsis),
+                    if (username.isNotEmpty)
+                      Text(username,
+                          style: TextStyle(
+                              fontSize: 12, color: theme.hintColor)),
+                  ],
+                ),
+              ),
+              // posts count badge
+              if (sub != null && sub.postsCount > 0)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDB2777).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${sub.postsCount} posts',
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFDB2777),
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          _InfoRow('Amount', '\$${item.amount}', theme, isAmount: true),
+          const SizedBox(height: 8),
+          _InfoRow('Provider', _capitalize(item.provider), theme),
+          const SizedBox(height: 8),
+          _InfoRow('Expires', item.expiresAtFormatted, theme),
+          const SizedBox(height: 8),
+          _InfoRow('Since', item.createdAtFormatted, theme),
+        ],
+      ),
+    );
+  }
+
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+}
+
+// ── Shared widgets ────────────────────────────────────────────────────────
+
+class _StatusBadge extends StatelessWidget {
+  final String status;
+  const _StatusBadge({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = status.toLowerCase() == 'active';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: (isActive ? Colors.green : Colors.orange).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: isActive ? Colors.green : Colors.orange,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final ThemeData theme;
+  final bool isAmount;
+
+  const _InfoRow(this.label, this.value, this.theme,
+      {this.isAmount = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TextStyle(fontSize: 13, color: theme.hintColor)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight:
+              isAmount ? FontWeight.bold : FontWeight.w500,
+              color: isAmount
+                  ? const Color(0xFFDB2777)
+                  : theme.textTheme.bodyMedium?.color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(40),
+      decoration: BoxDecoration(
+        color: theme.cardColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: theme.dividerColor),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 64,
+              color: theme.hintColor.withOpacity(0.5)),
+          const SizedBox(height: 16),
+          Text(title,
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: theme.textTheme.bodyLarge?.color)),
+          const SizedBox(height: 8),
+          Text(subtitle,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: theme.hintColor)),
+        ],
+      ),
+    );
+  }
+}

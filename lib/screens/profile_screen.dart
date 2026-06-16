@@ -14,6 +14,7 @@ import '../providers/connections_provider.dart';
 import '../providers/delete_post_provider.dart';
 import '../providers/follow_provider.dart';
 import '../providers/rating_provider.dart';
+import '../providers/subscriptions_list_provider.dart';
 import '../viewmodels/delete_post_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
 import '../viewmodels/register_view_model.dart' hide dioProvider;
@@ -1539,18 +1540,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   isSmallScreen)),
           SizedBox(width: isSmallScreen ? 8 : 12),
           Expanded(
-              child: _buildStatCard(
-                  theme,
-                  Icons.card_giftcard_outlined,
-                  widget.subscriberCount,
-                  context.tr.subscribers.toUpperCase(),
-                  const Color(0xFFA855F7),
-                  isSmallScreen,
-                  onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => SubscriptionsPage(
-                            currentUser: widget.currentUser)));
-                  })),
+            child: _buildStatCard(
+              theme,
+              Icons.card_giftcard_outlined,
+              ref.watch(activeSubscriberCountProvider).toString(), // ← LIVE COUNT
+              context.tr.subscribers.toUpperCase(),
+              const Color(0xFFA855F7),
+              isSmallScreen,
+              onTap: () {
+                Navigator.of(context).push(MaterialPageRoute(
+                  builder: (context) => SubscriptionsPage(
+                    currentUser: widget.currentUser,
+                  ),
+                ));
+              },
+            ),
+          ),
+
         ]),
       ),
       if (isMe) ...[
