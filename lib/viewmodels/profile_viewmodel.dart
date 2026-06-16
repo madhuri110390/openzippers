@@ -29,24 +29,19 @@ class ProfileViewModel extends ChangeNotifier {
 
   Future<void> fetchPresence(String token) async {
     if (_disposed) return;
-
     _isLoading = true;
     _errorMessage = null;
-
     if (!_disposed) notifyListeners();
 
     try {
       _presenceData = await _presenceRepository.fetchPresence(token);
-
       if (_disposed) return;
     } catch (e) {
       if (_disposed) return;
-
       _errorMessage = e.toString();
       debugPrint('Presence error: $e');
     } finally {
       if (_disposed) return;
-
       _isLoading = false;
       notifyListeners();
     }

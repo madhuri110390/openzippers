@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/feed_response.dart';
+import '../models/presence_model.dart';
 import '../models/register_response.dart';
 import '../network/api_client.dart';
 import '../providers/api_client_provider.dart';
@@ -25,7 +26,7 @@ abstract class FeedRepository {
 
   Future<Either<String, PostModel>> toggleBookmark(PostModel post);
 
-  Future<Either<String, RegisterResponse>> getPresence();
+  Future<Either<String, PresenceModel>> getPresence();
 
   /// Create a new post (Song / Video / Literature / Image) via multipart upload.
   Future<Either<String, Map<String, dynamic>>> createPost({
@@ -118,7 +119,7 @@ class FeedRepositoryImpl implements FeedRepository {
   // ── Presence ───────────────────────────────────────────
 
   @override
-  Future<Either<String, RegisterResponse>> getPresence() async {
+  Future<Either<String, PresenceModel>> getPresence() async {
     try {
       final response = await _api.getPresence();
       return Right(response);

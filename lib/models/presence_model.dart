@@ -1,8 +1,8 @@
 class PresenceModel {
   final int userId;
-  final String? username;           // nullable — not returned by API
+  final String? username;
   final bool isOnline;
-  final int? lastActivityUnix;      // nullable — not returned by API
+  final int? lastActivityUnix;
   final String lastSeenAt;
 
   PresenceModel({
@@ -16,9 +16,9 @@ class PresenceModel {
   factory PresenceModel.fromJson(Map<String, dynamic> json) {
     return PresenceModel(
       userId: json['user_id'],
-      username: json['username'],           // null-safe now
-      isOnline: json['online'] ?? false,    // ← was 'is_online', API sends 'online'
-      lastActivityUnix: json['last_activity_unix'],  // null-safe now
+      username: json['username'],
+      isOnline: json['online'] ?? false,
+      lastActivityUnix: json['last_activity_unix'],
       lastSeenAt: json['last_seen_at'],
     );
   }

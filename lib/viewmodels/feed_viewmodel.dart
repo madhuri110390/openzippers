@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/feed_response.dart';
+import '../models/presence_model.dart';
 import '../models/register_response.dart';
 import '../repositories/feed_repository.dart';
 
@@ -28,7 +29,7 @@ class FeedState {
   final List<PostModel> posts;
   final PaginationMeta? pagination;
   final String? errorMessage;
-  final RegisterResponse? userProfile;
+  final PresenceModel? userProfile;
 
   const FeedState({
     required this.status,
@@ -49,7 +50,7 @@ class FeedState {
     List<PostModel>? posts,
     PaginationMeta? pagination,
     String? errorMessage,
-    RegisterResponse? userProfile,
+    PresenceModel? userProfile,
   }) {
     return FeedState(
       status: status ?? this.status,

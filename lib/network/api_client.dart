@@ -8,6 +8,7 @@ import '../models/block_response.dart';
 import '../models/bookmark_response.dart';
 import '../models/cart_response.dart';
 import '../models/cart_toggle_response.dart';
+import '../models/presence_model.dart';
 import '../models/remove_cart_response.dart';
 import '../models/report_response.dart';
 import '../models/subscriptions_list_response.dart';
@@ -146,11 +147,16 @@ abstract class ApiClient {
   Future<RegisterResponse> getUserById(@Path("id") int id,);
 
   //status offline/online
+  // @GET("/presence")
+  // @Headers(<String, dynamic>{
+  //   "Accept": "application/json",
+  // })
+  // Future<RegisterResponse> getPresence();
   @GET("/presence")
   @Headers(<String, dynamic>{
     "Accept": "application/json",
   })
-  Future<RegisterResponse> getPresence();
+  Future<PresenceModel> getPresence();
 
   // home page feeds
   @GET("zippfans/feed")

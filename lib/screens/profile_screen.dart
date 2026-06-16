@@ -178,12 +178,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('auth_token') ?? widget.authToken;
-      _viewModel.fetchPresence(token);
+
       await Future.wait([
         _loadPostsFromApi(),
         _refreshUserData(),
         if (isMe) _fetchLoggedInUserDetails() else Future.value(),
       ]);
+
+      if (token.isNotEmpty && isMe) {
+        _viewModel.fetchPresence(token);
+      }
     });
   }
 

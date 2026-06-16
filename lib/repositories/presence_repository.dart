@@ -20,4 +20,4 @@ class PresenceRepository {
       throw Exception('Presence error: $e');
     }
   }
-}
+  }
