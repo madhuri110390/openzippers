@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -3173,6 +3174,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             });
           },
         ),
+        CartScreen(),
         ProfileScreen(
           posts: _userPosts,
           onPostDeleted: _onPostDeleted,
@@ -3467,6 +3469,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             icon: const Icon(Icons.people_outline),
             activeIcon: const Icon(Icons.people),
             label: context.tr.connections,
+          ),
+          BottomNavigationBarItem(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            activeIcon: const Icon(Icons.shopping_cart),
+            label: context.tr.cart,
           ),
           BottomNavigationBarItem(
             icon: const Icon(Icons.person_outline),

@@ -101,16 +101,23 @@ class LeftSidebar extends StatelessWidget {
                 ),
 
                 _MenuItem(
-                  icon: Icons.person_outline,
-                  label: tr.profile,
+                  icon: Icons.shopping_cart_outlined,
+                  label: tr.cart,
                   isSelected: currentIndex == 3,
                   onTap: () => onIndexChanged(3),
+                ),
+
+                _MenuItem(
+                  icon: Icons.person_outline,
+                  label: tr.profile,
+                  isSelected: currentIndex == 4,
+                  onTap: () => onIndexChanged(4),
                 ),
                  _MenuItem(
                   icon: Icons.settings_outlined, 
                   label: tr.settings, 
-                  isSelected: currentIndex == 4,
-                  onTap: () => onIndexChanged(4),
+                  isSelected: currentIndex == 5,
+                  onTap: () => onIndexChanged(5),
                 ),
                 const Divider(height: 30),
                 _MenuItem(icon: Icons.search, label: tr.search),
@@ -126,7 +133,7 @@ class LeftSidebar extends StatelessWidget {
                   isSelected: currentIndex == 6,
                   onTap: () => onIndexChanged(6),
                 ),
-                _MenuItem(icon: Icons.shopping_cart_outlined, label: tr.cart),
+               // _MenuItem(icon: Icons.shopping_cart_outlined, label: tr.cart),
                 _MenuItem(icon: Icons.help_outline, label: tr.helpSupport),
               ],
             ),

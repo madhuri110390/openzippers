@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/cart_provider.dart';
 import '../screens/cart_screen.dart';
 import '../screens/notifications_screen.dart';
@@ -214,16 +215,30 @@ class _TopSearchBarState extends ConsumerState<TopSearchBar> {
                         data: (response) => response.cartItems.length,
                       ) ?? 0;
                       return _BadgedIconButton(
-                        icon: Icons.shopping_cart_outlined,
-                        badgeCount: count,
+                        icon: Icons.message_sharp,
+                        badgeCount: 0,
                         isDark: isDark,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const CartScreen(),
-                            ),
+                        onPressed: () async {
+                          const packageName = 'com.openzipper.ozchat';
+
+                          final Uri intentUri = Uri.parse(
+                            'intent://ozchat.app'
+                                '#Intent'
+                                ';scheme=https'
+                                ';package=$packageName'
+                                ';S.browser_fallback_url=https%3A%2F%2Fplay.google.com%2Fstore%2Fapps%2Fdetails%3Fid%3D$packageName'
+                                ';end',
                           );
+
+                          final Uri storeUrl = Uri.parse(
+                            'https://play.google.com/store/apps/details?id=$packageName',
+                          );
+
+                          try {
+                            await launchUrl(intentUri, mode: LaunchMode.externalApplication);
+                          } catch (_) {
+                            await launchUrl(storeUrl, mode: LaunchMode.externalApplication);
+                          }
                         },
                       );
                     },

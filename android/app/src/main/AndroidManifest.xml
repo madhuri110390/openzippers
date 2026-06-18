@@ -73,4 +73,11 @@
             <data android:scheme="https" />
         </intent>
     </queries>
+    <queries>
+        <package android:name="com.openzipper.ozchat" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" android:host="ozchat.app" />
+        </intent>
+    </queries>
 </manifest>

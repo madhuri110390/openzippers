@@ -147,11 +147,6 @@ abstract class ApiClient {
   Future<RegisterResponse> getUserById(@Path("id") int id,);
 
   //status offline/online
-  // @GET("/presence")
-  // @Headers(<String, dynamic>{
-  //   "Accept": "application/json",
-  // })
-  // Future<RegisterResponse> getPresence();
   @GET("/presence")
   @Headers(<String, dynamic>{
     "Accept": "application/json",
